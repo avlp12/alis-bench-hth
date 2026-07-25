@@ -36,6 +36,37 @@ Objectivity comes from three things instead:
 Cross-model KL is never ranked: `KL(own-8bit ‖ build)` is a per-model cost, not a
 common scale.
 
+## Judging open generation — and who is allowed to judge
+
+Most of the suite needs **no judge at all**: MCQA (KMMLU, HAE-RAE, CLIcK), rule-verified
+IFEval, answer-extracted math (HRM8K, GSM8K, MATH), and executed code are all scored
+mechanically. Only **open-generation quality** needs one, so a missing judge API blocks
+one section — never the whole run.
+
+Judge options, strongest first:
+
+| option | why | publishable |
+|---|---|---|
+| ≥2 neutral judge APIs, both A/B orders | inter-judge agreement is measurable | yes |
+| **blinded pack → human native speaker** (`blind_pack.py`) | for *Korean naturalness* a native reader beats any LLM judge; this is the calibration the protocol already demands | yes (n≥20) |
+| 1 API judge + a second model | agreement measurable but thin | marginal |
+| the harness author's own model | see below | **no** |
+
+**Why the harness author must not be the sole judge.** Not being a contender is not
+enough. Whoever built one side's port, quantization and model card has an
+*authorship* conflict, and having read that model's outputs during development, is not
+blind to its style. A single judge also yields no agreement statistic — you cannot tell
+a confident judge from a correct one. `blind_pack.py` therefore hides model identity,
+randomizes the side per item, shuffles item order, and writes the mapping to a
+**separate key file**, so a reviewer file alone cannot reveal which side is which.
+`score` marks the result `publishable: false` unless the reviewer is human and n≥20.
+
+```bash
+python3 harness/blind_pack.py make --prompts logickor.jsonl   # -> blind_pack.md + blind_key.json
+# reviewer fills each `판정:` line with 가 / 나 / 무승부 (never opening the key)
+python3 harness/blind_pack.py score --reviewer "홍길동"        # -> pairwise.json, same shape aggregate.py reads
+```
+
 ## Anti-footguns baked in
 Each of these is a bug this harness already hit, and now refuses to repeat:
 - **metric[filter] schema** — a multi-filter task (`gsm8k_cot`) silently scored the

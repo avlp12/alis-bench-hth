@@ -66,9 +66,19 @@ single sample for both sides.
 
 ## 4. Judges (open generation)
 
-≥2 independent families, neither a contender. Both A/B orders per item. Ties,
-parse-failures and order-effects are counted separately; win-rate is over **all n**.
-Judges: ______, ______. Korean-native spot-check of ≥20 items: ______.
+Pick ONE and record it here — the choice caps what may be claimed:
+
+- [ ] **≥2 neutral judge APIs** (`judge_pairwise.py`), both A/B orders → publishable
+- [ ] **blinded pack, human Korean-native reviewer** (`blind_pack.py`, n≥20) → publishable
+- [ ] 1 API judge + a second model → marginal, state the limitation
+- [ ] harness author's model alone → **NOT publishable** (authorship conflict + no
+      agreement statistic + not blind to the side it built)
+
+Ties, parse-failures and order-effects are counted separately; win-rate is over **all n**.
+Judges/reviewer: ______  ·  Korean-native spot-check of ≥20 items: ______
+
+If no judge is available, run everything else and mark open-generation **NOT RUN** —
+MCQA, IFEval, math and code are all scored mechanically and need no judge.
 
 ## 5. Integrity
 
