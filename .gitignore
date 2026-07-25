@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+harness/config.env
+results/
+cases/*/results/
+.DS_Store

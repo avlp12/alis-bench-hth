@@ -1,0 +1,321 @@
+<title>Motif-3-Beta vs Solar Open 2 — 벤치마크 프로토콜</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+/* ============================ tokens ============================ */
+:root{
+  --ground:#F4F7F7; --surface:#FFFFFF; --surface-2:#EEF3F2;
+  --ink:#12201E; --ink-2:#546461; --ink-3:#7C8E8B;
+  --line:#DBE4E2; --line-2:#C7D3D1;
+  --accent:#0C6E68; --accent-ink:#0A5852;
+  --motif:#0E7C86; --motif-soft:#DCEFF0;
+  --solar:#B7761A; --solar-soft:#F4E8D3;
+  --good:#2E7D5B; --warn:#9E6B12; --crit:#B23A48;
+  --shadow:0 1px 2px rgba(18,32,30,.05),0 8px 24px -16px rgba(18,32,30,.18);
+  --mono:"SF Mono",ui-monospace,"JetBrains Mono",Menlo,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;
+  --kr:"Apple SD Gothic Neo","Pretendard","Malgun Gothic",var(--sans);
+  --maxw:1080px;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --ground:#0B1312; --surface:#111C1A; --surface-2:#16211F;
+    --ink:#E7EDEC; --ink-2:#A9B8B5; --ink-3:#7E8F8C;
+    --line:#233230; --line-2:#2E403D;
+    --accent:#39B3A7; --accent-ink:#5CC8BD;
+    --motif:#3AB4BD; --motif-soft:#123033;
+    --solar:#DFA548; --solar-soft:#33280F;
+    --good:#5DBE92; --warn:#D6A54A; --crit:#E0798A;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px -18px rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="light"]{
+  --ground:#F4F7F7; --surface:#FFFFFF; --surface-2:#EEF3F2;
+  --ink:#12201E; --ink-2:#546461; --ink-3:#7C8E8B; --line:#DBE4E2; --line-2:#C7D3D1;
+  --accent:#0C6E68; --accent-ink:#0A5852; --motif:#0E7C86; --motif-soft:#DCEFF0;
+  --solar:#B7761A; --solar-soft:#F4E8D3; --good:#2E7D5B; --warn:#9E6B12; --crit:#B23A48;
+  --shadow:0 1px 2px rgba(18,32,30,.05),0 8px 24px -16px rgba(18,32,30,.18);
+}
+:root[data-theme="dark"]{
+  --ground:#0B1312; --surface:#111C1A; --surface-2:#16211F;
+  --ink:#E7EDEC; --ink-2:#A9B8B5; --ink-3:#7E8F8C; --line:#233230; --line-2:#2E403D;
+  --accent:#39B3A7; --accent-ink:#5CC8BD; --motif:#3AB4BD; --motif-soft:#123033;
+  --solar:#DFA548; --solar-soft:#33280F; --good:#5DBE92; --warn:#D6A54A; --crit:#E0798A;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px -18px rgba(0,0,0,.6);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--ground); color:var(--ink);
+  font-family:var(--kr); font-size:16px; line-height:1.6;
+  -webkit-font-smoothing:antialiased; letter-spacing:.005em;
+}
+.wrap{max-width:var(--maxw); margin:0 auto; padding:0 24px}
+section{padding:34px 0; border-top:1px solid var(--line)}
+h1,h2,h3{font-family:var(--sans); text-wrap:balance; letter-spacing:-.02em; line-height:1.12; margin:0}
+.eyebrow{font-family:var(--mono); font-size:12px; letter-spacing:.16em; text-transform:uppercase; color:var(--accent); font-weight:600}
+.mono{font-family:var(--mono); font-variant-numeric:tabular-nums}
+.muted{color:var(--ink-2)}
+a{color:var(--accent-ink); text-underline-offset:2px}
+code{font-family:var(--mono); font-size:.86em; background:var(--surface-2); padding:.1em .38em; border-radius:5px; border:1px solid var(--line)}
+
+/* ============================ header ============================ */
+header{padding:56px 0 30px}
+header .eyebrow{display:block; margin-bottom:14px}
+header h1{font-size:clamp(28px,5vw,46px); font-weight:800}
+header h1 .vs{color:var(--ink-3); font-weight:500}
+header h1 .m{color:var(--motif)} header h1 .s{color:var(--solar)}
+header p.lede{margin:16px 0 0; max-width:60ch; font-size:18px; color:var(--ink-2)}
+.tags{display:flex; flex-wrap:wrap; gap:8px; margin-top:22px}
+.tag{font-family:var(--mono); font-size:11.5px; letter-spacing:.04em; text-transform:uppercase;
+  padding:5px 10px; border:1px solid var(--line-2); border-radius:999px; color:var(--ink-2); background:var(--surface)}
+
+/* ============================ matchup ============================ */
+.match{display:grid; grid-template-columns:1fr 64px 1fr; gap:0; align-items:stretch;
+  background:var(--surface); border:1px solid var(--line); border-radius:16px; overflow:hidden; box-shadow:var(--shadow)}
+.fighter{padding:24px}
+.fighter h3{font-size:20px; font-weight:750; display:flex; align-items:center; gap:9px}
+.fighter.m h3{color:var(--motif)} .fighter.s h3{color:var(--solar)}
+.dot{width:11px; height:11px; border-radius:50%}
+.m .dot{background:var(--motif)} .s .dot{background:var(--solar)}
+.fighter .sub{font-family:var(--mono); font-size:12px; color:var(--ink-3); margin:3px 0 16px; letter-spacing:.02em}
+.spec{display:grid; grid-template-columns:auto 1fr; gap:7px 14px; font-size:14px}
+.spec dt{color:var(--ink-3); font-family:var(--mono); font-size:11.5px; text-transform:uppercase; letter-spacing:.05em; align-self:center}
+.spec dd{margin:0; font-family:var(--mono); font-variant-numeric:tabular-nums; text-align:right; font-weight:600}
+.spine{display:flex; align-items:center; justify-content:center; position:relative;
+  background:linear-gradient(var(--line),var(--line)) center/1px 100% no-repeat}
+.spine span{font-family:var(--sans); font-weight:800; font-size:13px; letter-spacing:.05em; color:var(--ink-3);
+  background:var(--surface); padding:8px 0; border:1px solid var(--line); border-radius:50%; width:40px; height:40px; display:flex; align-items:center; justify-content:center}
+.match .note{grid-column:1/-1; border-top:1px solid var(--line); padding:12px 24px; font-size:13px; color:var(--ink-2); background:var(--surface-2)}
+.match .note b{color:var(--ink)}
+
+/* ============================ generic blocks ============================ */
+.h-head{display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; margin-bottom:6px}
+.h-head h2{font-size:24px; font-weight:780}
+.h-head .k{font-family:var(--mono); font-size:12px; color:var(--ink-3); letter-spacing:.02em}
+.intro{max-width:66ch; color:var(--ink-2); margin:0 0 22px}
+
+/* checklist (fairness) */
+.checks{display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:14px; counter-reset:c}
+.check{background:var(--surface); border:1px solid var(--line); border-left:3px solid var(--accent);
+  border-radius:11px; padding:15px 17px; box-shadow:var(--shadow)}
+.check h4{margin:0 0 5px; font-family:var(--sans); font-size:15px; font-weight:700; letter-spacing:-.01em; display:flex; gap:9px; align-items:baseline}
+.check h4::before{counter-increment:c; content:counter(c,decimal-leading-zero); font-family:var(--mono); font-size:12px; color:var(--accent); font-weight:600}
+.check p{margin:0; font-size:13.5px; color:var(--ink-2); line-height:1.5}
+
+/* tables */
+.twrap{overflow-x:auto; border:1px solid var(--line); border-radius:12px; background:var(--surface); box-shadow:var(--shadow)}
+table{border-collapse:collapse; width:100%; font-size:13.5px; min-width:540px}
+th,td{text-align:left; padding:11px 14px; border-bottom:1px solid var(--line); vertical-align:top}
+thead th{font-family:var(--mono); font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-3); font-weight:600; background:var(--surface-2); position:sticky; top:0}
+tbody tr:last-child td{border-bottom:0}
+td.mono,th.mono{font-family:var(--mono); font-variant-numeric:tabular-nums}
+.dim{font-family:var(--mono); font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--accent); white-space:nowrap}
+.pill{display:inline-block; font-family:var(--mono); font-size:10.5px; letter-spacing:.03em; text-transform:uppercase;
+  padding:2px 7px; border-radius:999px; border:1px solid var(--line-2); color:var(--ink-2)}
+.pill.decon{color:var(--good); border-color:color-mix(in srgb,var(--good) 40%,transparent)}
+.pill.judge{color:var(--solar); border-color:color-mix(in srgb,var(--solar) 45%,transparent)}
+.pill.verif{color:var(--accent); border-color:color-mix(in srgb,var(--accent) 40%,transparent)}
+.tool-m{color:var(--motif); font-weight:600} .tool-s{color:var(--solar); font-weight:600}
+
+/* schematic */
+.schem{background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:20px 22px; box-shadow:var(--shadow)}
+.schem .cap{display:flex; justify-content:space-between; align-items:baseline; gap:12px; margin-bottom:4px; flex-wrap:wrap}
+.schem h4{margin:0; font-family:var(--sans); font-size:15px; font-weight:700}
+.schem .flag{font-family:var(--mono); font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--warn); border:1px solid color-mix(in srgb,var(--warn) 45%,transparent); padding:2px 8px; border-radius:999px}
+.legend{display:flex; gap:18px; margin-top:8px; font-family:var(--mono); font-size:12px; color:var(--ink-2)}
+.legend b{display:inline-flex; align-items:center; gap:6px; font-weight:600}
+.legend i{width:14px; height:3px; border-radius:2px; display:inline-block}
+.schem svg{display:block; width:100%; height:auto; aspect-ratio:720 / 260}
+.schem svg text{font-family:var(--mono); fill:var(--ink-3)}
+.schem .grid{stroke:var(--line)}
+.schem .ln-m{stroke:var(--motif)} .schem .ln-s{stroke:var(--solar)}
+.schem .dot-m{fill:var(--motif)} .schem .dot-s{fill:var(--solar)}
+.schem .gm{stop-color:var(--motif)} .schem .gs{stop-color:var(--solar)}
+
+/* pipeline */
+.flow{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; counter-reset:s}
+.step{background:var(--surface); border:1px solid var(--line); border-radius:11px; padding:14px; position:relative}
+.step .n{font-family:var(--mono); font-size:11px; color:var(--accent); font-weight:600}
+.step .n::before{counter-increment:s; content:"STEP " counter(s) " · "}
+.step h4{margin:6px 0 3px; font-family:var(--sans); font-size:14px; font-weight:700; letter-spacing:-.01em}
+.step p{margin:0; font-size:12.5px; color:var(--ink-2); line-height:1.45}
+.step code{font-size:11px}
+
+/* traps */
+.traps{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:12px}
+.trap{background:var(--surface); border:1px solid var(--line); border-radius:11px; padding:14px 16px; border-top:3px solid var(--crit)}
+.trap h4{margin:0 0 4px; font-family:var(--sans); font-size:14px; font-weight:700}
+.trap p{margin:0; font-size:13px; color:var(--ink-2); line-height:1.48}
+
+/* footer */
+footer{border-top:1px solid var(--line); padding:30px 0 60px; color:var(--ink-3); font-size:13px}
+footer .files{font-family:var(--mono); font-size:12px; color:var(--ink-2); margin-top:10px; line-height:1.9}
+footer .files span{white-space:nowrap; border:1px solid var(--line); border-radius:6px; padding:2px 7px; margin-right:6px; display:inline-block; margin-bottom:4px}
+
+@media (max-width:680px){
+  .match{grid-template-columns:1fr}
+  .spine{height:44px; background:linear-gradient(90deg,var(--line),var(--line)) center/100% 1px no-repeat}
+  .spec dd{text-align:left}
+}
+@media (prefers-reduced-motion:no-preference){
+  .check,.step,.trap{transition:transform .15s ease, box-shadow .15s ease}
+  .check:hover,.step:hover{transform:translateY(-1px)}
+}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:4px}
+</style>
+
+<div class="wrap">
+
+<header>
+  <span class="eyebrow">Head-to-head benchmark protocol · Apple Silicon / MLX</span>
+  <h1><span class="m">Motif-3-Beta</span> <span class="vs">vs</span> <span class="s">Solar Open 2</span></h1>
+  <p class="lede">두 한국 독자 파운데이션 MoE의 <b>최고 역량</b>을 겨루는 head-to-head. 각자 <b>자기 최적 양자화·최고 설정</b>으로 임하되, 과제·채점·심사를 고정하고 <b>모든 조건을 공개</b>해 객관성을 지킨다.</p>
+  <div class="tags">
+    <span class="tag">best-vs-best</span><span class="tag">mlx_lm.server</span>
+    <span class="tag">Gesicht · Epsilon</span><span class="tag">KO-first suite</span>
+    <span class="tag">≥2 judges</span><span class="tag">pre-registered · fail-closed</span>
+  </div>
+</header>
+
+<section style="border-top:0; padding-top:8px">
+  <div class="match">
+    <div class="fighter m">
+      <h3><span class="dot"></span>Motif-3-Beta</h3>
+      <div class="sub">Motif Technologies · GDLA MoE</div>
+      <dl class="spec">
+        <dt>total</dt><dd>314B</dd>
+        <dt>active</dt><dd>~13B</dd>
+        <dt>experts</dt><dd>384+1 · top-8</dd>
+        <dt>layers</dt><dd>53</dd>
+        <dt>context</dt><dd>262K</dd>
+        <dt>attn</dt><dd>GDLA (MLA)</dd>
+        <dt>vocab</dt><dd>220,160</dd>
+        <dt>langs</dt><dd>KO · EN</dd>
+      </dl>
+    </div>
+    <div class="spine"><span>VS</span></div>
+    <div class="fighter s">
+      <h3><span class="dot"></span>Solar Open 2</h3>
+      <div class="sub">Upstage · hybrid-attn MoE</div>
+      <dl class="spec">
+        <dt>total</dt><dd>250B</dd>
+        <dt>active</dt><dd>15B</dd>
+        <dt>experts</dt><dd>320+1 · top-8</dd>
+        <dt>layers</dt><dd>48</dd>
+        <dt>context</dt><dd>1M</dd>
+        <dt>attn</dt><dd>GQA + linear</dd>
+        <dt>tokenizer</dt><dd>KO-opt 50–80%</dd>
+        <dt>langs</dt><dd>KO · EN · JA</dd>
+      </dl>
+    </div>
+    <p class="note"><b>왜 깨끗한 대결인가:</b> active param 13B ≈ 15B로 연산량이 근접 → 품질뿐 아니라 <b>효율</b>도 공정 성립. 비대칭(토크나이저·컨텍스트·thinking 예산)은 아래 프로토콜에서 통제한다.</p>
+  </div>
+</section>
+
+<section>
+  <div class="h-head"><h2>공정성 프로토콜</h2><span class="k">best-vs-best — 조건을 맞추는 게 아니라 공개한다</span></div>
+  <p class="intro">각 모델을 <b>천장까지</b> 끌어올린 뒤 붙인다. 객관성의 앵커는 조건 통일이 아니라 <b>과제·채점·심사의 불변 + 모든 설정의 공개</b>다.</p>
+  <div class="checks">
+    <div class="check"><h4>각자 최적 양자화</h4><p>레시피를 맞추지 않는다 — 각 모델은 자기 팀이 최적화한 빌드로. 대신 <b>모델별 KL(자기 8-bit ‖ 빌드)</b>을 공개해 “그 빌드가 치른 양자화 비용”을 드러낸다(정규화 아님).</p></div>
+    <div class="check"><h4>각자 최고 설정 + 비용 원장</h4><p>thinking 최대, 권장 샘플링, 최적 프롬프트 — 천장까지. 단 결과 생성 <b>전</b>에 설정·빌드·런타임 커밋을 동결 기록하고, 실제 소비된 <b>completion/reasoning 토큰</b>을 판정 옆에 병기한다. dirty 트리는 “재현 불가”로 표시.</p></div>
+    <div class="check"><h4>과제·채점은 고정</h4><p>같은 문항, 같은 정답 추출·규칙·실행 채점. 여기가 객관성의 앵커 — 모델별로 바뀌면 안 되는 유일한 축.</p></div>
+    <div class="check"><h4>각자의 채팅 템플릿</h4><p>공정 = 두 모델이 <b>각자</b> 자기 템플릿·시스템 프롬프트를 쓴다. 한쪽 걸 강요하면 그게 불공정. <code>sanity_probe.py</code>로 검증.</p></div>
+    <div class="check"><h4>중립 심사 + 위치 디바이어스</h4><p>개방형은 제3의 심사자, A/B 순서를 뒤집어 <b>양쪽 순서 일치</b>만 승리. 위치 편향률도 공개.</p></div>
+    <div class="check"><h4>자원은 두 번째 축</h4><p>더 많은 토큰·메모리를 써서 이겼다면 그것도 결과다. chars/s·thinking 토큰·bpw를 <b>역량 옆에 병기</b> — 승패를 지우지 않되 비용을 보인다.</p></div>
+    <div class="check"><h4>사전등록(pre-register)</h4><p>스위트·주지표·승리규칙·peak 설정을 <b>결과 보기 전</b> 해시·타임스탬프하고 Kimi가 공동서명 — 스위트 선택이 승자를 정하지 못하게.</p></div>
+    <div class="check"><h4>Fail-closed 무결성</h4><p>결정적 run-id·필수 셀 매니페스트 — 누락/stale 셀이 있으면 <b>판정 차단</b>. 지표는 <b>metric[filter]</b> 명시 스키마, 판정은 paired 부트스트랩 CI + <b>Holm 다중검정 보정</b> + 등가 마진 → “판정불가”.</p></div>
+  </div>
+</section>
+
+<section>
+  <div class="h-head"><h2>무엇을 어디서 돌리나</h2><span class="k">mlx_lm.server는 logprob 채점 불가 → 도메인별 하니스 분리</span></div>
+  <div class="twrap"><table>
+    <thead><tr><th>도메인</th><th>하니스</th><th>태스크</th></tr></thead>
+    <tbody>
+      <tr><td class="dim">KO 지식·추론·수학</td><td><b>HRET</b> <code>run_hret.py</code></td><td>KMMLU(-Redux/Pro), HAE-RAE, HRM8K, CLIcK, KoSimpleQA <span class="pill">언어 페널티는 별도 행</span></td></tr>
+      <tr><td class="dim">EN 추론·수학·IF</td><td><b>lm-eval 0.4.9</b> 생성형 <code>run_lm_eval.sh</code></td><td>MMLU-Pro, BBH, GSM8K, MATH, <span class="pill verif">IFEval</span></td></tr>
+      <tr><td class="dim">KO 개방형 품질</td><td><b>pairwise judge</b> <code>judge_pairwise.py</code></td><td>LogicKor / Arena-Hard <span class="pill judge">LLM 심사</span></td></tr>
+      <tr><td class="dim">효율</td><td><b>throughput_probe</b> (동일 박스)</td><td>TTFT · decode tok/s · <b>chars/s</b></td></tr>
+      <tr><td class="dim">양자화 손상</td><td><b>alis-dwq</b> <code>run_kl.sh</code></td><td>KL vs 각 모델 자기 8-bit ref</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <div class="h-head"><h2>벤치마크 스위트</h2><span class="k">한국어 우선 · 오염 저항 우선</span></div>
+  <div class="twrap"><table>
+    <thead><tr><th>차원</th><th>벤치마크</th><th>형식</th><th>비고</th></tr></thead>
+    <tbody>
+      <tr><td class="dim">KO 지식·문화</td><td>KMMLU-Redux · KMMLU-Pro · HAE-RAE · CLIcK</td><td class="mono">MCQA</td><td><span class="pill decon">decontam</span> vanilla KMMLU 대신</td></tr>
+      <tr><td class="dim">KO 수리·추론</td><td>HRM8K</td><td class="mono">생성 · k-평균</td><td>한·영 이중 수학, 추론모델 차별화</td></tr>
+      <tr><td class="dim">KO 지시이행</td><td>Ko-IFEval · IFBench</td><td class="mono">검증형</td><td><span class="pill verif">judge-free</span> 객관성 최상</td></tr>
+      <tr><td class="dim">KO 사실성</td><td>KoSimpleQA</td><td class="mono">생성</td><td>저bpw 환각 직격 — 2.3bpw 플로어</td></tr>
+      <tr><td class="dim">KO 생성품질</td><td>LogicKor · Ko-Arena-Hard</td><td class="mono">LLM 심사</td><td><span class="pill judge">중립+위치스왑</span></td></tr>
+      <tr><td class="dim">범용 추론(EN)</td><td>MMLU-Pro · GPQA-Diamond · BBH</td><td class="mono">MCQA/생성</td><td>Solar 보고셋과 교차검증</td></tr>
+      <tr><td class="dim">수학(상급)</td><td>MATH-500 · AIME · HMMT</td><td class="mono">생성 · k-평균</td><td>추론 천장</td></tr>
+      <tr><td class="dim">코드</td><td>HumanEval+ · MBPP+ · LiveCodeBench</td><td class="mono">실행 채점</td><td><span class="pill decon">LCB 오염저항</span> Motif 저bpw 코드 주시</td></tr>
+      <tr><td class="dim">롱컨텍스트</td><td>RULER · KO Needle</td><td class="mono">검색</td><td>128K 매칭 비교 → 천장(262K/1M) 별도</td></tr>
+      <tr><td class="dim">효율(동일 HW)</td><td>decode tok/s · <b>chars/s</b> · TTFT · peak RAM</td><td class="mono">계측</td><td>13B vs 15B active + 토크나이저 효율</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <div class="h-head"><h2>세 트랙으로 나눠 본다</h2><span class="k">단일 빌드·단일 숫자는 교란 — best-submitted만 “best-vs-best”</span></div>
+  <p class="intro">양자화 스킬과 베이스 실력이 한 숫자에 섞이면 객관성이 무너진다. 그래서 세 트랙을 분리 보고하고, <b>cross-model KL 랭킹은 금지</b>한다(KL은 각 모델 자기 8-bit 대비 비용일 뿐).</p>
+  <div class="checks">
+    <div class="check"><h4>고정밀 베이스</h4><p>8-bit/bf16 — 양자화 영향 최소 지점. “어느 <b>베이스</b>가 나은가”의 앵커. 두 포트 다 공식 BF16 로짓 대비 패리티 통과 필수.</p></div>
+    <div class="check"><h4>자원-매칭 양자화</h4><p>같은 bpw·방법으로 맞춰 <b>양자화 스킬</b>을 통제. “같은 예산에서 어느 양자화가 나은가.”</p></div>
+    <div class="check"><h4>무제한 best-submitted</h4><p>각자 최적 빌드 + 최고 설정. <b>오직 이 트랙만</b> “best-vs-best”. 비용(bpw·thinking 토큰)을 병기.</p></div>
+  </div>
+  <div class="schem" style="margin-top:18px">
+    <div class="cap"><h4>결과 자리 — 축만 표시</h4><span class="flag">데이터 없음 · 측정 후 채움</span></div>
+    <svg viewBox="0 0 720 260" role="img" aria-label="빈 결과 축 (측정 전, 곡선 없음)">
+      <g class="grid" stroke-width="1">
+        <line x1="70" y1="30" x2="70" y2="210"/><line x1="70" y1="210" x2="690" y2="210"/>
+        <line x1="70" y1="120" x2="690" y2="120" stroke-dasharray="3 6" opacity=".5"/>
+      </g>
+      <g font-size="11" text-anchor="middle"><text x="380" y="236">각 모델 자기 tier (매칭 아님) →</text></g>
+      <g font-size="11" text-anchor="end"><text x="60" y="34">high</text><text x="60" y="214">low</text></g>
+      <text x="380" y="124" text-anchor="middle" font-size="12" opacity=".55">결과는 측정 후 — 곡선 없음 (순서 암시 금지)</text>
+    </svg>
+    <div class="legend"><span class="muted">중립 축만 · 경쟁자 색 곡선은 확정 결과 전까지 그리지 않는다</span></div>
+  </div>
+</section>
+
+<section>
+  <div class="h-head"><h2>Kimi 핸드오프 — Motif 레시피 참고용</h2><span class="k">각자 최적 · 강제 매칭 아님</span></div>
+  <p class="intro">Solar는 Kimi가 <b>자기 최적 방식</b>으로 양자화한다(레시피 강제 아님). 아래는 Motif-3-Beta가 쓴 레시피 — <b>참고·영감용</b>이며 Kimi가 Solar에 맞춰 능가하면 된다. 비교 파이프라인이 요구하는 건 레시피 일치가 아니라 <b>산출물의 비교가능성</b>: mlx_lm.server 서빙 · 모델별 8-bit ref(KL용) · 자기 채팅 템플릿. 전체 핸드오프 → <code>quant/KIMI_HANDOFF_motif-recipe.md</code>.</p>
+  <div class="flow">
+    <div class="step"><div class="n">census</div><h4>routing 조사</h4><p><code>expert_traffic</code> + <code>code_entropy</code> — flat routing 확인(균일 expert bits OK)</p></div>
+    <div class="step"><div class="n">build</div><h4>정적 빌드</h4><p>predicate로 Q8 / C6 / FLOOR — Motif와 동일 프로파일</p></div>
+    <div class="step"><div class="n">clip</div><h4>clip-search 재양자화</h4><p><code>clip_quantize</code> — greedy 열화 교정</p></div>
+    <div class="step"><div class="n">targets</div><h4>teacher 타깃 덤프</h4><p><code>run --targets-only</code> teacher=C6</p></div>
+    <div class="step"><div class="n">DWQ</div><h4>layerwise 증류</h4><p>K=8 · <b>lr 1e-5</b>(≈85GB 학생 기준·크기따라 조정) · seed 7 · round rollback</p></div>
+    <div class="step"><div class="n">eval</div><h4>KL 검증</h4><p><code>eval_kld</code> vs Solar 자기 Q8 ref · KO/EN/code</p></div>
+  </div>
+</section>
+
+<section>
+  <div class="h-head"><h2>객관성을 깨는 함정</h2><span class="k">this matchup, specifically</span></div>
+  <div class="traps">
+    <div class="trap"><h4>토크나이저–throughput</h4><p>tokens/s로 비교하면 Solar 손해·Motif 이득. 반드시 chars/s로.</p></div>
+    <div class="trap"><h4>thinking 비용</h4><p>각자 천장까지 thinking 허용 — 단 토큰 소비를 <b>공개</b>. 더 써서 이겼다면 그 비용도 결과다.</p></div>
+    <div class="trap"><h4>벤더 숫자</h4><p>자체보고 표를 그대로 인용 금지. 같은 하니스로 재실행.</p></div>
+    <div class="trap"><h4>양자화 비용</h4><p>각자 최적이라 손상 정도가 다르다. 모델별 KL(자기 ref)·tier(메모리)를 병기해 비용을 드러낸다.</p></div>
+    <div class="trap"><h4>컨텍스트 비대칭</h4><p>1M vs 262K를 한 표에 넣지 말 것. 매칭 길이 + 천장 별도.</p></div>
+    <div class="trap"><h4>하니스 분산</h4><p>도메인당 하니스 하나로 고정. 버전·config 해시·seed 기록.</p></div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap" style="padding:0">
+    <div><b>실행 kit</b> — <code>motif3/h2h/</code> · 서빙은 <code>@motif</code> 포크, Solar는 자체 포크. 첫 패스(≈1일): KMMLU-Redux + HRM8K + Ko-IFEval + KoSimpleQA + LiveCodeBench · 각자 최적 빌드(메모리 tier 병기) + 8-bit KL 2건.</div>
+    <div class="files">
+      <span>config.env</span><span>serve.sh</span><span>sanity_probe.py</span><span>run_lm_eval.sh</span><span>run_hret.py</span><span>judge_pairwise.py</span><span>throughput_probe.py</span><span>run_kl.sh</span><span>manifest.py</span><span>aggregate.py</span><span>run_all.sh</span><span>quant/KIMI_HANDOFF_motif-recipe.md</span>
+    </div>
+    <div class="muted" style="margin-top:14px">작업용 규격서 · 스펙은 공개 자료 기준(변동 가능) · 벤치 점수는 측정 전 (도식은 예시)</div>
+  </div>
+</footer>
+
+</div>
