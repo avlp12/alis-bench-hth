@@ -4,3 +4,5 @@ harness/config.env
 results/
 cases/*/results/
 .DS_Store
+.testmodel/
+.venv-lmeval/

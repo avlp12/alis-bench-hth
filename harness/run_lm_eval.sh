@@ -35,9 +35,14 @@ echo "[lm_eval] $NAME tasks=$TASKS temp=$TEMP top_p=$TOP_P max_gen_toks=$GEN_TOK
 # template — exactly the fairness property this protocol requires.
 # seed must go in --model_args (that's what reaches the API payload); the CLI
 # --seed only seeds python/numpy/fewshot sampling.
-lm_eval --model local-chat-completions \
+# lm-eval and HRET have MUTUALLY EXCLUSIVE pins (lm-eval's legacy dataset ids need
+# huggingface_hub<1.0; HRET's transformers needs hub>=1.0) — each runs from its own
+# venv. Verified live 2026-07-26.
+LMEVAL_BIN="${LMEVAL_BIN:-$here/../.venv-lmeval/bin/lm_eval}"
+[ -x "$LMEVAL_BIN" ] || { echo "[lm_eval] venv missing, falling back to PATH lm_eval"; LMEVAL_BIN="lm_eval"; }
+"$LMEVAL_BIN" --model local-chat-completions \
   --model_args "model=${MODEL},base_url=${URL}/v1/chat/completions,num_concurrent=4,max_retries=3,tokenized_requests=False,timeout=7200,seed=${SEED}" \
-  --tasks "$TASKS" \
+  --tasks "$TASKS" ${LIMIT:+--limit "$LIMIT"} \
   --apply_chat_template \
   --gen_kwargs "temperature=${TEMP},top_p=${TOP_P},max_gen_toks=${GEN_TOKS}" \
   --seed "$SEED" --batch_size 1 --log_samples \
