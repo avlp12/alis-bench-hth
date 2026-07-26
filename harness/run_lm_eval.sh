@@ -26,7 +26,12 @@ GEN_TOKS="$MAX_TOKENS"
 #   gsm8k_cot  -> grade-school math CoT
 #   minerva_math -> MATH (competition math)
 #   ifeval     -> verifiable instruction following (judge-free -> most objective)
-TASKS="mmlu_pro,bbh,gsm8k_cot,minerva_math,ifeval"
+# Purpose-built ZERO-SHOT variants — their filters expect chat-style output.
+# (bbh/gsm8k_cot are the *fewshot* configs; forcing them to 0-shot leaves filters
+#  and stop-sequences tuned for exemplar mimicry, which scores format-fit.)
+# ifeval is EXCLUDED here and run separately: it scores per-item instruction
+# following, so any injected global format instruction corrupts it by construction.
+TASKS="${TASKS:-mmlu_pro,bbh_cot_zeroshot,gsm8k_cot_zeroshot,minerva_math}"
 
 echo "[lm_eval] $NAME tasks=$TASKS temp=$TEMP top_p=$TOP_P max_gen_toks=$GEN_TOKS (peak) -> $OUT"
 # --apply_chat_template is REQUIRED by local-chat-completions (it asserts the
@@ -38,11 +43,48 @@ echo "[lm_eval] $NAME tasks=$TASKS temp=$TEMP top_p=$TOP_P max_gen_toks=$GEN_TOK
 # lm-eval and HRET have MUTUALLY EXCLUSIVE pins (lm-eval's legacy dataset ids need
 # huggingface_hub<1.0; HRET's transformers needs hub>=1.0) — each runs from its own
 # venv. Verified live 2026-07-26.
-LMEVAL_BIN="${LMEVAL_BIN:-$here/../.venv-lmeval/bin/lm_eval}"
-[ -x "$LMEVAL_BIN" ] || { echo "[lm_eval] venv missing, falling back to PATH lm_eval"; LMEVAL_BIN="lm_eval"; }
-"$LMEVAL_BIN" --model local-chat-completions \
-  --model_args "model=${MODEL},base_url=${URL}/v1/chat/completions,num_concurrent=4,max_retries=3,tokenized_requests=False,timeout=7200,seed=${SEED}" \
+LMEVAL_BIN="${LMEVAL_BIN:-$here/../.venv-lmeval/bin/lm-eval}"
+[ -x "$LMEVAL_BIN" ] || { echo "[lm_eval] venv missing, falling back to PATH lm-eval"; LMEVAL_BIN="lm-eval"; }
+# lm-eval >=0.4.10 moved evaluation under a `run` subcommand (breaking change).
+LMEVAL_RUN=(run)
+"$LMEVAL_BIN" run --help >/dev/null 2>&1 || LMEVAL_RUN=()   # pre-0.4.10 fallback
+# ZERO-SHOT + an explicit output-format instruction, applied IDENTICALLY to both
+# contenders. Rationale (preregistration amendment 2026-07-26): the 8-shot format
+# measures how well a model imitates the fewshot phrasing, not whether it solves
+# the problem. Verified in smoke: Solar T read the 8 exemplars as material to
+# analyse and answered *about* them — it reached the right number (exact_match 1.0
+# on the item inspected) while the flexible extractor picked an intermediate number
+# from its analysis (0.125 vs strict 0.500), whereas Motif, which mimics the format,
+# scored 8/8. Publishing that gap would report format-fit as capability, in the
+# direction that favours the side we built. Zero-shot + one shared format
+# instruction removes the confound symmetrically.
+FEWSHOT="${FEWSHOT:-0}"
+# The instruction must match what the extractors ACTUALLY parse, verified against
+# the installed task configs (2026-07-26):
+#   bbh_cot_zeroshot / mmlu_pro : "(?<=the answer is )" / "answer is \(?([A-J])\)?"
+#   gsm8k_cot_zeroshot strict   : "The answer is (\-?[0-9\.\,]+)."
+# A "#### <answer>" instruction (an earlier attempt) parses on NONE of them and
+# would have scored obedience to our own instruction as failure.
+FORMAT_INSTRUCTION="${FORMAT_INSTRUCTION:-End your reply with a final line of the form: The answer is <answer>.}"
+
+"$LMEVAL_BIN" "${LMEVAL_RUN[@]}" --model local-chat-completions \
+  --model_args "model=${MODEL},base_url=${URL}/v1/chat/completions,num_concurrent=${NUM_CONCURRENT:-4},max_retries=3,tokenized_requests=False,timeout=7200,seed=${SEED}" \
   --tasks "$TASKS" ${LIMIT:+--limit "$LIMIT"} \
+  --num_fewshot "$FEWSHOT" \
+  --system_instruction "$FORMAT_INSTRUCTION" \
+  --apply_chat_template \
+  --gen_kwargs "temperature=${TEMP},top_p=${TOP_P},max_gen_toks=${GEN_TOKS}" \
+  --seed "$SEED" --batch_size 1 --log_samples \
+  --output_path "$OUT"
+
+# ifeval — SEPARATE run, NO --system_instruction. It scores each item against its
+# own constraints (end-with-phrase, wrap-in-quotes, JSON-only, language-only...),
+# so a global format instruction makes it measure system-vs-user priority instead
+# of instruction following, penalising the more system-obedient model.
+echo "[lm_eval] $NAME ifeval (no system instruction, native zero-shot)"
+"$LMEVAL_BIN" "${LMEVAL_RUN[@]}" --model local-chat-completions \
+  --model_args "model=${MODEL},base_url=${URL}/v1/chat/completions,num_concurrent=${NUM_CONCURRENT:-4},max_retries=3,tokenized_requests=False,timeout=7200,seed=${SEED}" \
+  --tasks ifeval ${LIMIT:+--limit "$LIMIT"} \
   --apply_chat_template \
   --gen_kwargs "temperature=${TEMP},top_p=${TOP_P},max_gen_toks=${GEN_TOKS}" \
   --seed "$SEED" --batch_size 1 --log_samples \

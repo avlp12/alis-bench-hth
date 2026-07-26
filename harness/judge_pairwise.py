@@ -100,6 +100,46 @@ def combine(outcomes):
     if outcomes.count("order_effect"):               return "order_effect"
     return "tie"
 
+def length_controlled(rows, seed=1234):
+    """AlpacaEval-2.0-style length control.
+
+    Telling a judge "do not be biased by length" does NOT work — that is precisely
+    why length-controlled win rates exist. The published remedy is statistical:
+    regress the preference on the length difference and report the win rate the
+    model would get at ZERO length difference.
+
+    Returns (raw_winrate, length_controlled_winrate, mean_len_winner,
+             mean_len_loser, beta_length). Reported ALONGSIDE the raw number,
+     never instead of it — length may genuinely correlate with quality.
+    """
+    import numpy as np
+    xs, ys, wl, ll = [], [], [], []
+    for r in rows:
+        f = r.get("final")
+        if f not in ("motif", "solar"):
+            continue
+        lm, ls = len(r.get("answer_motif") or ""), len(r.get("answer_solar") or "")
+        denom = (lm + ls) or 1
+        xs.append((lm - ls) / denom)          # normalized length difference
+        ys.append(1.0 if f == "motif" else 0.0)
+        (wl if f == "motif" else ll).append(lm)
+        (ll if f == "motif" else wl).append(ls)
+    n = len(ys)
+    if n < 8:
+        return (None,) * 5
+    X = np.column_stack([np.ones(n), np.asarray(xs)])
+    y = np.asarray(ys)
+    w = np.zeros(2)
+    for _ in range(200):                       # IRLS-ish gradient steps
+        p_ = 1 / (1 + np.exp(-X @ w))
+        g = X.T @ (y - p_) / n
+        H = (X * (p_ * (1 - p_))[:, None]).T @ X / n + 1e-6 * np.eye(2)
+        w = w + np.linalg.solve(H, g)
+    lc = float(1 / (1 + np.exp(-w[0])))        # prediction at length_diff = 0
+    return (float(y.mean()), lc,
+            float(np.mean(wl)) if wl else None, float(np.mean(ll)) if ll else None,
+            float(w[1]))
+
 def bootstrap_sign(scores, margin, n=2000, seed=1234):
     a = np.asarray(scores, float)
     if a.size == 0: return (None, None, None, "no-data")
@@ -185,6 +225,17 @@ def main():
                "judge_position_bias": {k: round(v / (n or 1), 3) for k, v in per_judge_bias.items()},
                "judge_agreement": round(1 - (tally["judge_disagree"] / n), 3) if n else None,
                "publishable": (not smoke) and len(eps) >= 2}
+    raw, lc, mw, ml, beta = length_controlled(rows, seed)
+    summary["length_control"] = {
+        "raw_winrate_vs_decided": None if raw is None else round(raw, 3),
+        "length_controlled_winrate": None if lc is None else round(lc, 3),
+        "mean_chars_winner": mw, "mean_chars_loser": ml,
+        "beta_length": None if beta is None else round(beta, 3),
+        "note": ("AlpacaEval-2.0-style: win rate predicted at zero length difference. "
+                 "Report ALONGSIDE the raw rate — length may correlate with real quality "
+                 "(LMArena's own caveat), so a controlled number is a second view, not a "
+                 "correction. beta_length > 0 means longer Motif answers won more often."),
+    }
     (outdir / "pairwise.json").write_text(json.dumps({"summary": summary, "rows": rows}, ensure_ascii=False, indent=2))
     print("[judge] summary:", json.dumps(summary, ensure_ascii=False))
 

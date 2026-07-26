@@ -127,6 +127,25 @@ def main():
                     got["_error_predictions"] = errs
                 payload["penalized" if pen else "raw"] = got
             # primary = raw when available (correctness), else the penalized pass
+            # Persist PER-ITEM correctness so the Korean suite gets the same paired
+            # statistics as the English one. Marginal means alone cannot decide a
+            # winner — that was our own standard for lm-eval and the KO stack was
+            # being held to a weaker one.
+            prim = payload.get("raw") or payload.get("penalized") or {}
+            items = []
+            for i, s in enumerate(prim.get("samples") or []):
+                if not isinstance(s, dict):
+                    continue
+                key = str(s.get("id") or s.get("doc_id") or s.get("input", "")[:120] or i)
+                sc = s.get("is_correct", s.get("correct", s.get("score")))
+                if isinstance(sc, bool):
+                    sc = float(sc)
+                if isinstance(sc, (int, float)):
+                    items.append({"key": key, "score": float(sc)})
+            if items:
+                (outdir / f"{ds}_items.json").write_text(
+                    json.dumps(items, ensure_ascii=False))
+                payload["_n_items"] = len(items)
             payload["_primary"] = "raw" if "raw" in payload else "penalized"
             payload["_penalize_mode"] = pen_mode
             if ds in CONTAMINATED:

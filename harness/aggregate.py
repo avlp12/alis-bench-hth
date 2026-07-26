@@ -23,13 +23,19 @@ SEED = int(os.environ.get("SEED", "1234"))
 
 # ---- explicit metric schema: ordered acceptable "metric,filter" keys per task ----
 METRIC_SCHEMA = {
-    "mmlu_pro":     ["exact_match,custom-extract", "exact_match,none", "acc,none"],
-    "bbh":          ["exact_match,none", "exact_match,get-answer"],
-    "gsm8k_cot":    ["exact_match,strict-match", "exact_match,flexible-extract"],
-    "minerva_math": ["exact_match,none"],
-    "ifeval":       ["prompt_level_strict_acc,none", "inst_level_strict_acc,none"],
+    "mmlu_pro":           ["exact_match,custom-extract", "exact_match,none"],
+    "bbh_cot_zeroshot":   ["exact_match,none", "exact_match,get-answer"],
+    # gsm8k zero-shot: flexible-extract first. strict-match wants the exact
+    # sentence form; flexible takes the last number and is robust to a model that
+    # solves the problem while phrasing the conclusion its own way.
+    "gsm8k_cot_zeroshot": ["exact_match,flexible-extract", "exact_match,strict-match"],
+    # minerva exact_match requires the Minerva incantation ("Final Answer: The
+    # final answer is X. I hope it is correct.") that only its 4-shot exemplars
+    # taught. math_verify checks mathematical equivalence and is format-free.
+    "minerva_math":       ["math_verify,none", "exact_match,none"],
+    "ifeval":             ["prompt_level_strict_acc,none", "inst_level_strict_acc,none"],
 }
-GROUPS = {"bbh": "bbh"}  # task whose samples live in per-subtask files samples_bbh_*
+GROUPS = {"bbh_cot_zeroshot": "bbh"}  # group tasks whose samples land in per-subtask files
 
 def load_results(name):
     """task -> metrics dict, from lm-eval results*.json.
@@ -56,30 +62,38 @@ def primary(task, metrics):
             return metrics[key], se, key
     return None, None, None  # schema drift -> excluded from verdict, flagged loudly
 
-def truncation_rate(name):
-    """Fraction of lm-eval samples whose generation hit the token cap.
+def failure_rates(name):
+    """(empty_content, extraction_miss, total) per model.
 
-    Critical for reasoning models: when a long thinking block eats the budget the
-    answer never appears, and an answer-extractor happily returns a number found
-    INSIDE the thinking. That scores as a wrong answer rather than a failed run,
-    silently converting 'the budget was too small' into 'the model is bad'.
+    The previous heuristic (>6000 chars, no think marker) was inverted for BOTH
+    architectures: lm-eval stores only `message.content`, so a model capped
+    mid-thinking yields EMPTY content and was never counted, while a model that
+    reasons visibly and finishes normally trips the length test and raised a
+    permanent false alarm. Measure the two things that actually mean "this item
+    produced no usable answer":
+      empty_content   -> the budget died before any answer (truncation)
+      extraction_miss -> the filter could not find an answer in what was produced
+    Both are symmetric across models and directly bound how much of a score is
+    capability versus plumbing.
     """
     import glob as _g
-    tot = cut = 0
+    tot = empty = miss = 0
     for f in _g.glob(str(R / "lm_eval" / name / "**" / "samples_*.jsonl"), recursive=True):
         try:
             for line in open(f):
-                r = json.loads(line)
-                resps = r.get("resps") or r.get("filtered_resps") or []
+                r = json.loads(line); tot += 1
+                resps = r.get("resps") or []
                 txt = " ".join(x if isinstance(x, str) else str(x) for x in
                                (resps[0] if resps and isinstance(resps[0], list) else resps))
-                tot += 1
-                # no terminator marker AND no short tail => almost certainly capped
-                if txt and not any(m in txt for m in ("</think>", "<|think:end|>")) and len(txt) > 6000:
-                    cut += 1
+                if not txt.strip():
+                    empty += 1; continue
+                fr = r.get("filtered_resps")
+                flat = " ".join(str(x) for x in (fr if isinstance(fr, list) else [fr]))
+                if (not flat.strip()) or "[invalid]" in flat:
+                    miss += 1
         except Exception:
             continue
-    return (cut, tot)
+    return empty, miss, tot
 
 def load_samples(name, task, base_metric, filt):
     """{(subtask,doc_id): score} from lm-eval --log_samples jsonl.
@@ -221,9 +235,29 @@ def main():
         stats.append(dict(task=task, base=base, filt=filt, mv=mv, mse=mse, sv=sv, sse=sse,
                           dmean=dmean, lo=lo, hi=hi, p=p, n=len(shared)))
 
+    # Korean suite: same paired treatment as English (per-item, bootstrap, Holm)
+    def _ko_items(name, ds):
+        f = R / "hret" / name / f"{ds}_items.json"
+        if not f.exists(): return {}
+        try: return {r["key"]: r["score"] for r in json.load(open(f))}
+        except Exception: return {}
+    ko_ds = sorted({p.name[:-len("_items.json")]
+                    for n in ("motif", "solar")
+                    for p in (R / "hret" / n).glob("*_items.json")} ) if (R / "hret").exists() else []
+    for ds in ko_ds:
+        mi, si = _ko_items("motif", ds), _ko_items("solar", ds)
+        shared = sorted(set(mi) & set(si))
+        if not shared:
+            unpaired.append(f"hret:{ds} (motif n={len(mi)}, solar n={len(si)}; no shared item keys)")
+        dmean, lo, hi, p_ = bootstrap_paired([mi[k] - si[k] for k in shared])
+        stats.append(dict(task=f"hret:{ds}", base="accuracy", filt=None,
+                          mv=sum(mi.values())/len(mi) if mi else 0.0, mse=None,
+                          sv=sum(si.values())/len(si) if si else 0.0, sse=None,
+                          dmean=dmean, lo=lo, hi=hi, p=p_, n=len(shared)))
+
     # pass 2: Holm correction across the task family, then verdicts
     sig = holm([s["p"] for s in stats])
-    md += ["## EN reasoning/math/IF — paired (Holm-corrected across tasks)", "",
+    md += ["## Scored tasks — paired (Holm-corrected across the family)", "",
            "| task | metric[filter] | Motif | Solar | Δ mean [95% CI] | p | verdict |",
            "|---|---|---|---|---|---|---|"]
     rows = []
@@ -267,19 +301,18 @@ def main():
                f"- judge agreement: {js.get('judge_agreement')} · verdict: **{js.get('verdict','?')}**"]
 
     # ---- truncation: silent score corruption for reasoning models ----
-    md += ["", "## Truncation check (answers cut off before they appear)", ""]
-    trunc_bad = False
+    md += ["", "## Plumbing failures (items that produced no usable answer)", "",
+           "| model | empty content (budget died) | extraction miss | total |", "|---|---|---|---|"]
+    plumb_bad = False
     for n in ("motif", "solar"):
-        cut, tot = truncation_rate(n)
-        rate = (cut / tot) if tot else 0
-        flag = "🛑" if rate > 0.02 else "ok"
-        if rate > 0.02: trunc_bad = True
-        md.append(f"- {n}: {cut}/{tot} generations look capped ({rate:.1%}) {flag}")
-    if trunc_bad:
-        md.append("")
-        md.append("> 🛑 **Above 2% the scores are not trustworthy.** A capped generation has no "
-                  "answer, so the extractor returns something found inside the thinking block — "
-                  "scored as a wrong answer instead of a failed run. Raise MAX_TOKENS and re-run.")
+        e, m, tot = failure_rates(n)
+        if tot and (e + m) / tot > 0.02: plumb_bad = True
+        md.append(f"| {n} | {e} ({e/tot:.1%}) | {m} ({m/tot:.1%}) | {tot} |" if tot
+                  else f"| {n} | — | — | 0 |")
+    if plumb_bad:
+        md += ["", "> 🛑 **Above 2% these scores mix capability with plumbing.** Empty content means "
+               "the token budget died before an answer; an extraction miss means the filter could not "
+               "find one in what was produced. Neither is evidence about the model. Fix and re-run."]
 
     # ---- disclosed cost ledger: what each model SPENT to reach its peak ----
     disc = (json.loads((R / "run_manifest.json").read_text()).get("disclosure")

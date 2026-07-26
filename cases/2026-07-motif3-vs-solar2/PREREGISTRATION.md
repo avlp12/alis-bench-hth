@@ -94,15 +94,20 @@ workaround; reproduced at greedy, publicly flagged). Until it is rebuilt, Motif
 has **no KL anchor**, so the quantization-cost cell must be reported as MISSING
 for Motif — never as zero, and never compared against Solar's KL.
 
+**R3 (reference tier) — frozen 2026-07-26:**
+
 | | Motif | Solar |
 |---|---|---|
-| build | ______ | ______ |
-| bpw / GB | ______ | ______ |
-| 8-bit reference | ______ | ______ |
-| thinking | ______ | ______ |
-| temperature / top_p | ______ | ______ |
-| max_tokens | ______ | ______ |
-| runtime commit | `avlp12/mlx-lm@2a07e51` (clean) | ______ |
+| build | Motif-3-Beta 8-bit (rebuilt) | Solar-Open-2 T (Q8) |
+| shards / bytes | 77 / 334,382,459,970 | 62 / ~266 GB |
+| served on | epsilon 10.0.0.2:8081 | gesicht 127.0.0.1:8082 |
+| 8-bit reference | n/a — this build IS the anchor | n/a — same |
+| adapter | none | none (T ships none) |
+| thinking | on (template default) | on (`reasoning_effort=high`) |
+| temperature / top_p | 1.0 / 0.95 | 1.0 / 1.0 |
+| max_tokens | 32768 | 32768 |
+| fewshot | 0 | 0 |
+| runtime commit | `avlp12/mlx-lm@2a07e51` (clean) | kimi fork `@7937fda` (clean) |
 
 Self-consistency / best-of-k is **not implemented** in this harness; every item is a
 single sample for both sides.
@@ -116,6 +121,12 @@ Pick ONE and record it here — the choice caps what may be claimed:
 - [ ] 1 API judge + a second model → marginal, state the limitation
 - [ ] harness author's model alone → **NOT publishable** (authorship conflict + no
       agreement statistic + not blind to the side it built)
+- [x] **NONE for R3** → open-generation is **NOT RUN** and reported as such. Mechanical
+      scoring (MCQA, verifiable IFEval, answer-extracted math) needs no judge.
+
+When a judge IS used, the win rate is reported **raw and length-controlled**
+(regression at zero length difference). Instruction-only debiasing ("do not be
+swayed by length") is a documented failure mode and does not count as control.
 
 Ties, parse-failures and order-effects are counted separately; win-rate is over **all n**.
 Judges/reviewer: ______  ·  Korean-native spot-check of ≥20 items: ______
@@ -144,4 +155,5 @@ is not a result.
 | date | change | reason |
 |---|---|---|
 | 2026-07-26 | **Round order changed: R3 (reference) runs before R1 (floor).** | R1 is blocked: the Solar fork's server silently drops `--adapter-path` (`ModelProvider.load` keys `_adapter_map` with an already-rebound path), so F-v2 would be benchmarked **without** the rank-8 DWQ adapter it ships with — understating Solar. Held until Kimi confirms the fix or the `"adapters"`-in-body workaround. Meanwhile both reference-tier builds are ready and verified (Motif Q8 rebuilt after the mx.split defect: 5/5 greedy slices clean; Solar T public at `t384`), and a machine is idle, so R3 runs first. Round *order* is not part of the frozen decision rule — the binding commitment is that **all three rounds are disclosed regardless of outcome**, which is unchanged. |
+| 2026-07-26 | **lm-eval runs zero-shot with a shared output-format instruction** (`--num_fewshot 0`, `--system_instruction`), replacing the task-default 8-shot. | Smoke showed the fewshot format measures *format imitation*, not capability, and does so asymmetrically. Solar T treated the 8 exemplars as material to analyse and answered about them — it still reached the correct number on the item inspected (`exact_match 1.0`) while the flexible extractor picked an intermediate value from its analysis (0.125 vs strict-match 0.500); Motif, which mimics the exemplar style, scored 8/8. Reporting that as a capability gap would favour the side these authors built. Zero-shot plus one instruction, identical for both, removes the confound symmetrically. Recorded before any scored run. |
 | 2026-07-26 | Motif reference build replaced. | The originally shipped Motif 8-bit was corrupt (`mx.split` silent corruption above 2³¹ elements). Rebuilt, verified by generation, and re-uploaded. R3 uses the rebuilt build; its identity is recorded in the round manifest. |

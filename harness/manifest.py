@@ -102,6 +102,10 @@ def _disclosure():
         "runtime": {"motif_fork": _git_provenance(e("MLXLM_FORK")),
                     "solar_fork": _git_provenance(e("SOLAR_FORK"))},
         "hret_penalize": e("HRET_PENALIZE", "off"),
+        "protocol": {"fewshot": e("FEWSHOT", "0"), "limit": e("LIMIT", "") or "full",
+                     "tasks": e("TASKS", "") or "<default>",
+                     "format_instruction": e("FORMAT_INSTRUCTION", ""),
+                     "num_concurrent": e("NUM_CONCURRENT", "4")},
     }
 
 def _stamp_path(p: Path) -> Path:
@@ -121,9 +125,16 @@ def init():
     # wall-clock. Re-running an identical setup keeps the same run_id, so a KL or
     # throughput cell computed in an earlier session stays valid instead of going
     # falsely stale; changing any model/config/code invalidates every cell.
+    # The protocol knobs MUST be in the hash: a leftover `export LIMIT=50` or
+    # FEWSHOT=8 from a smoke shell would otherwise yield a stamped, "COMPLETE",
+    # wrong-protocol run that no artifact can distinguish from the real one.
     run_id = _sha(os.environ.get("MOTIF_MODEL", ""), os.environ.get("SOLAR_MODEL", ""),
                   os.environ.get("MOTIF_URL", ""), os.environ.get("SOLAR_URL", ""),
-                  os.environ.get("SUITE_MODE", "full"), config_sha, _code_sha())[:12]
+                  os.environ.get("SUITE_MODE", "full"),
+                  os.environ.get("LIMIT", ""), os.environ.get("FEWSHOT", "0"),
+                  os.environ.get("FORMAT_INSTRUCTION", ""), os.environ.get("TASKS", ""),
+                  os.environ.get("NUM_CONCURRENT", ""),
+                  config_sha, _code_sha())[:12]
     prev = json.loads(MAN.read_text()).get("status", {}) if MAN.exists() else {}
     prev_id = json.loads(MAN.read_text()).get("run_id") if MAN.exists() else None
     MAN.write_text(json.dumps({
@@ -157,8 +168,20 @@ def record(step, code):
 def check():
     man = json.loads(MAN.read_text())
     run_id = man["run_id"]
+    # Use the cell list RECORDED AT INIT, not one re-derived from the live env:
+    # otherwise emptying JUDGE_ENDPOINTS after a failed judge step silently drops
+    # that cell from REQUIRED and the run is declared COMPLETE without it.
+    recorded = man.get("required")
+    paths = dict(REQUIRED)
+    cells = [(k, paths.get(k)) for k in recorded] if recorded else REQUIRED
+    missing_defs = [k for k, v in cells if v is None]
+    if missing_defs:
+        print(f"  [integrity] cells recorded at init are no longer defined: {missing_defs} "
+              "— the config changed after init; re-init and re-run.")
     missing, stale, badstep = [], [], []
-    for key, rel in REQUIRED:
+    for key, rel in cells:
+        if rel is None:
+            missing.append(f"{key} (definition lost)"); continue
         p = R / rel
         if not p.exists():
             missing.append(rel); continue
@@ -170,10 +193,10 @@ def check():
             badstep.append(f"{key}={man['status'][key]}")
     ok = not (missing or stale or badstep)   # a failed step never counts as COMPLETE
     n_bad = len(set(missing) | {s.split(' ')[0] for s in stale})
-    verdict = "COMPLETE" if ok else ("INCOMPLETE" if n_bad == len(REQUIRED) else "PARTIAL")
+    verdict = "COMPLETE" if ok else ("INCOMPLETE" if n_bad == len(cells) else "PARTIAL")
     man["integrity"] = {"verdict": verdict, "missing": missing, "stale": stale, "failed_steps": badstep}
     MAN.write_text(json.dumps(man, indent=2, ensure_ascii=False))
-    print(f"[integrity] {verdict}  run_id={run_id}  ({len(REQUIRED)-n_bad}/{len(REQUIRED)} cells fresh)")
+    print(f"[integrity] {verdict}  run_id={run_id}  ({len(cells)-n_bad}/{len(cells)} cells fresh)")
     for label, items in (("missing", missing), ("STALE(wrong run_id)", stale), ("failed steps", badstep)):
         if items:
             print(f"  {label}: " + ", ".join(items))
