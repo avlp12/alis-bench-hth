@@ -45,6 +45,29 @@ machine. Do not start a second big model on either host without stopping the fir
 4. Publish R3 **whatever it says** (binding rule in the prereg), then R2 (mid), then R1
    (floor) once Kimi's adapter bug is resolved.
 
+## 3b. Sample size — PREREGISTERED at 150 items per task
+
+The full suites are ~51k Korean items plus the English tasks; at measured throughput
+(Motif ~22 s/item, **Solar T ~89 s/item**) running everything is hundreds of hours per
+model. The preregistered sample is **150 items per task**, frozen before any scored run
+— 5× the `MIN_PAIRED_N=30` floor, so verdicts stay possible.
+
+lm-eval's `--limit` applies **per subtask**, so group tasks need a divided limit:
+
+| task | subtasks | `--limit` | total |
+|---|---|---|---|
+| `mmlu_pro` | 14 | 11 | ~154 |
+| `bbh_cot_zeroshot` | 27 | 6 | ~162 |
+| `gsm8k_cot_zeroshot` | 1 | 150 | ~150 |
+| `minerva_math` | 7 | 22 | ~154 |
+| `ifeval` | 1 | 150 | ~150 |
+
+English total ≈ 770 items. Korean: `KO_ITEMS=150` per dataset × 5 ≈ 750.
+**Overall ≈ 1520 items** → roughly 9 h (Motif) / 38 h (Solar) of wall-clock.
+
+⚠ `click` has **no `test` split** (train only) — it will fail as configured. Drop it or
+pin `split=train` explicitly and say so.
+
 ## 4. Hard-won gotchas — do not rediscover these
 
 **Serving**

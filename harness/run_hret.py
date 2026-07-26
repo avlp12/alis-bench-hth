@@ -97,6 +97,14 @@ def main():
         #   consistency is reported as a SEPARATE pass (HRET_PENALIZE=both).
         pen_mode = os.environ.get("HRET_PENALIZE", "off").lower()
         passes = {"off": [False], "on": [True], "both": [False, True]}[pen_mode]
+        # Preregistered sample: 300 items per dataset, stratified across subsets.
+        # The full Korean suite is ~51k items; at measured throughput that is
+        # hundreds of hours per model. A fixed, preregistered sample is the honest
+        # alternative to "all of it or nothing" — n=300 is 10x the MIN_PAIRED_N
+        # floor and is frozen in the preregistration, not chosen after seeing scores.
+        n_items = int(os.environ.get("KO_ITEMS", "300"))
+        extra = dict(extra)
+        extra.setdefault("dataset_params", {})
         try:
             payload = {}
             for pen in passes:
