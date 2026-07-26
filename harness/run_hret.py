@@ -39,7 +39,12 @@ CONTAMINATED = {"kmmlu": "vanilla KMMLU: ~5.4% test-dup / ~5.5% train-test leak;
 def datasets_for(mode):
     if mode == "smoke":
         return [("kmmlu", {}), ("haerae_bench", {})]
-    return [("kmmlu", {}), ("haerae_bench", {}), ("hrm8k", {}), ("click", {}), ("kormedmcqa", {})]
+    # Two datasets only (2026-07-27 amendment). Measured cost on the reference tier
+    # is ~8.5 min/item for Korean MCQA — 20x the English rate — so the full five-set
+    # suite is hundreds of hours per model. kmmlu covers knowledge breadth;
+    # haerae_bench covers Korean-specific cultural/linguistic ability. Dropped:
+    # hrm8k and kormedmcqa (cost), click (has no `test` split — train only).
+    return [("kmmlu", {}), ("haerae_bench", {})]
 
 def main():
     name = (sys.argv[1] if len(sys.argv) > 1 else "motif").lower()

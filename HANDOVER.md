@@ -62,11 +62,14 @@ lm-eval's `--limit` applies **per subtask**, so group tasks need a divided limit
 | `minerva_math` | 7 | 22 | ~154 |
 | `ifeval` | 1 | 150 | ~150 |
 
-English total ≈ 770 items. Korean: `KO_ITEMS=150` per dataset × 5 ≈ 750.
-**Overall ≈ 1520 items** → roughly 9 h (Motif) / 38 h (Solar) of wall-clock.
+English total ≈ 770 items at ~22 s/item.
 
-⚠ `click` has **no `test` split** (train only) — it will fail as configured. Drop it or
-pin `split=train` explicitly and say so.
+**Korean is a different cost regime — measure, do not extrapolate from English.**
+Korean MCQA on the reference tier runs **~8.5 min/item** on Motif (≈20× the English
+rate: long prompts, deep reasoning). So the Korean suite is **2 datasets × 50 items**
+(`kmmlu`, `haerae_bench`; `KO_ITEMS=50`) = 100 items ≈ 14 h on Motif. Dropped `hrm8k`
+and `kormedmcqa` for cost, and `click` because it has **no `test` split** (train only)
+and would have failed mid-run.
 
 ## 4. Hard-won gotchas — do not rediscover these
 
