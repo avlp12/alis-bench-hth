@@ -143,4 +143,5 @@ is not a result.
 
 | date | change | reason |
 |---|---|---|
-| | | |
+| 2026-07-26 | **Round order changed: R3 (reference) runs before R1 (floor).** | R1 is blocked: the Solar fork's server silently drops `--adapter-path` (`ModelProvider.load` keys `_adapter_map` with an already-rebound path), so F-v2 would be benchmarked **without** the rank-8 DWQ adapter it ships with — understating Solar. Held until Kimi confirms the fix or the `"adapters"`-in-body workaround. Meanwhile both reference-tier builds are ready and verified (Motif Q8 rebuilt after the mx.split defect: 5/5 greedy slices clean; Solar T public at `t384`), and a machine is idle, so R3 runs first. Round *order* is not part of the frozen decision rule — the binding commitment is that **all three rounds are disclosed regardless of outcome**, which is unchanged. |
+| 2026-07-26 | Motif reference build replaced. | The originally shipped Motif 8-bit was corrupt (`mx.split` silent corruption above 2³¹ elements). Rebuilt, verified by generation, and re-uploaded. R3 uses the rebuilt build; its identity is recorded in the round manifest. |

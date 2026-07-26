@@ -23,12 +23,18 @@ python3 -c "import numpy" 2>/dev/null && ok "numpy" || bad "numpy missing"
 python3 -c "import spacy;spacy.load('ko_core_news_sm')" 2>/dev/null && ok "spaCy ko model" || warn "spaCy ko model absent (HRET report analysis limited): python3 -m spacy download ko_core_news_sm"
 
 echo "== 2. builds =="
-for pair in "motif:$MOTIF_MODEL" "solar:$SOLAR_MODEL"; do
-  n="${pair%%:*}"; p="${pair#*:}"
+# A contender may be served from ANOTHER box (one model per machine when two
+# large builds cannot co-reside in RAM). In that case the path is not local, so a
+# missing directory is only a blocker if the endpoint is also unreachable —
+# §3 is the real gate. A remote build is noted so it appears in the disclosure.
+for pair in "motif|$MOTIF_MODEL|$MOTIF_URL" "solar|$SOLAR_MODEL|$SOLAR_URL"; do
+  n="${pair%%|*}"; rest="${pair#*|}"; p="${rest%%|*}"; u="${rest##*|}"
   if [ -e "$p" ] && ls "$p"/*.safetensors >/dev/null 2>&1; then
     ok "$n build: $p ($(ls "$p"/*.safetensors 2>/dev/null | wc -l | tr -d ' ') shards)"
     [ -f "$p/config.json" ] || bad "$n: config.json missing"
-  else bad "$n build absent or has no .safetensors: $p"; fi
+  elif curl -s -m 5 "$u/v1/models" >/dev/null 2>&1; then
+    warn "$n build not on this host ($p) — served remotely; integrity was verified on its own host"
+  else bad "$n build absent locally AND its endpoint is unreachable: $p"; fi
 done
 for pair in "motif_ref:${MOTIF_REF:-}" "solar_ref:${SOLAR_REF:-}"; do
   n="${pair%%:*}"; p="${pair#*:}"

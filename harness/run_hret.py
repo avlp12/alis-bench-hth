@@ -25,18 +25,21 @@ from pathlib import Path
 # Korean set — SUITE_MODE selects. full = decontaminated/advertised suite and
 # ABORTS if HRET can't resolve a dataset (never silently downgrades to vanilla
 # kmmlu). smoke = quick, clearly non-publishable subset.
-# VERIFIED against the installed HRET registry (2026-07-26, hret 0.1.0):
-#   aime2025 benchhub click haerae hrc hrm8k k2_eval kbl kmmlu kormedqa kudge
-# NOT available in HRET: kmmlu_redux, kmmlu_pro, kosimpleqa. The protocol prefers
-# the decontaminated KMMLU variants, so plain `kmmlu` is carried with an explicit
-# CONTAMINATED flag rather than being passed off as the decontaminated suite.
+# VERIFIED against the installed HRET DATASET_REGISTRY keys (hret 0.1.0, 2026-07-26):
+#   KUDGE aime2025 benchhub click generic_file haerae_bench hrc hrm8k k2_eval kbl
+#   kmmlu kormedmcqa
+# (An earlier version of this file listed *module* names from pkgutil — `haerae`,
+#  `kormedqa` — which are NOT registry keys and abort the run at dataset #2.)
+# NOT available in HRET: kmmlu_redux, kmmlu_pro, kosimpleqa. Plain `kmmlu` is
+# carried with an explicit CONTAMINATED flag instead of being passed off as the
+# decontaminated suite.
 CONTAMINATED = {"kmmlu": "vanilla KMMLU: ~5.4% test-dup / ~5.5% train-test leak; "
                          "KMMLU-Redux/Pro are NOT in HRET 0.1.0 — treat as a lower bound"}
 
 def datasets_for(mode):
     if mode == "smoke":
-        return [("kmmlu", {}), ("haerae", {})]
-    return [("kmmlu", {}), ("haerae", {}), ("hrm8k", {}), ("click", {}), ("kormedqa", {})]
+        return [("kmmlu", {}), ("haerae_bench", {})]
+    return [("kmmlu", {}), ("haerae_bench", {}), ("hrm8k", {}), ("click", {}), ("kormedmcqa", {})]
 
 def main():
     name = (sys.argv[1] if len(sys.argv) > 1 else "motif").lower()
@@ -65,9 +68,19 @@ def main():
         print(f"[hret] {name} :: {ds}")
         # -------- VERIFY (2 keys) for your installed HRET version --------
         #   backend name for an OpenAI-compatible server, and the base-url key:
-        model_backend = "litellm"          # or "openai" ; litellm passes through to any OpenAI-compatible server
+        # LiteLLMBackend.__init__ requires provider + model_name; passing `model`
+        # raises TypeError before a single item is scored (verified 2026-07-26).
+        model_backend = "litellm"
         model_params = {
-            "model": f"openai/{model}",     # litellm "openai/<name>" -> generic OpenAI-compatible route
+            # LiteLLMBackend only prefixes the provider for azure/bedrock; for
+            # "openai" it passes model_name through raw, and litellm cannot infer
+            # a provider from a filesystem path -> BadRequestError. The prefix must
+            # be in model_name itself. (Verified 2026-07-26: without it every
+            # prediction comes back as the string "Error: litellm.BadRequestError…",
+            # which the backend returns WITHOUT raising — i.e. the whole Korean
+            # suite would score error text as answers and quietly read ~0%.)
+            "provider": "openai",
+            "model_name": f"openai/{model}",
             "api_base": url.rstrip("/") + "/v1",
             "api_key": os.environ.get("DUMMY_KEY", "sk-noauth"),
             "temperature": temp,            # best-vs-best: each model's own peak sampling
@@ -98,6 +111,20 @@ def main():
                     **extra,
                 )
                 got = res if isinstance(res, dict) else getattr(res, "to_dict", lambda: {"raw": str(res)})()
+                # The backend swallows API failures and returns them as the
+                # prediction string. Scoring those is worse than crashing: it
+                # yields a plausible-looking 0% instead of an error.
+                samples = got.get("samples") or []
+                errs = sum(1 for s in samples
+                           if isinstance(s, dict) and str(s.get("prediction", "")).startswith("Error:"))
+                if samples and errs:
+                    rate = errs / len(samples)
+                    msg = (f"[hret] {ds}: {errs}/{len(samples)} predictions are backend ERROR strings "
+                           f"({rate:.0%}) — these would be scored as wrong answers. Aborting.")
+                    if mode == "full":
+                        sys.exit(msg)
+                    print(msg, file=sys.stderr)
+                    got["_error_predictions"] = errs
                 payload["penalized" if pen else "raw"] = got
             # primary = raw when available (correctness), else the penalized pass
             payload["_primary"] = "raw" if "raw" in payload else "penalized"

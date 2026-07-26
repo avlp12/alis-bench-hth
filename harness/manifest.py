@@ -18,13 +18,35 @@ from pathlib import Path
 R = Path(os.environ["RESULTS_DIR"])
 MAN = R / "run_manifest.json"
 
-REQUIRED = [  # (step-key, path relative to RESULTS_DIR)
-    ("lm_eval.motif", "lm_eval/motif"), ("lm_eval.solar", "lm_eval/solar"),
-    ("hret.motif", "hret/motif"),       ("hret.solar", "hret/solar"),
-    ("judge", "judge/pairwise.json"),
-    ("kl.motif", "kl/motif_kl.txt"),    ("kl.solar", "kl/solar_kl.txt"),
-    ("thru.motif", "throughput/motif.json"), ("thru.solar", "throughput/solar.json"),
-]
+def _required():
+    """Required cells depend on what this round can legitimately produce.
+
+    A cell that is deliberately not run (no judge configured; a tier whose builds
+    ARE the 8-bit anchors so KL-vs-self is 0 by construction) must be recorded as
+    NOT-RUN — demanding it would make COMPLETE unreachable and silently downgrade
+    every round to an unpublishable PARTIAL.
+    """
+    req = [("lm_eval.motif", "lm_eval/motif"), ("lm_eval.solar", "lm_eval/solar"),
+           ("hret.motif", "hret/motif"),       ("hret.solar", "hret/solar"),
+           ("thru.motif", "throughput/motif.json"), ("thru.solar", "throughput/solar.json")]
+    if (os.environ.get("JUDGE_ENDPOINTS") or "").strip():
+        req.append(("judge", "judge/pairwise.json"))
+    if (os.environ.get("MOTIF_REF") or "").strip():
+        req.append(("kl.motif", "kl/motif_kl.txt"))
+    if (os.environ.get("SOLAR_REF") or "").strip():
+        req.append(("kl.solar", "kl/solar_kl.txt"))
+    return req
+
+REQUIRED = _required()
+
+NOT_RUN = {  # recorded in the manifest so the report says N/A, never "missing"
+    "judge": None if (os.environ.get("JUDGE_ENDPOINTS") or "").strip() else
+             "no neutral judges configured — open-generation NOT RUN",
+    "kl.motif": None if (os.environ.get("MOTIF_REF") or "").strip() else
+             "no 8-bit anchor for this tier — KL not applicable",
+    "kl.solar": None if (os.environ.get("SOLAR_REF") or "").strip() else
+             "no 8-bit anchor for this tier — KL not applicable",
+}
 
 def _sha(*parts):
     h = hashlib.sha256()
@@ -53,9 +75,14 @@ def _git_provenance(path):
         except Exception:
             return ""
     commit = _g("rev-parse", "HEAD") or None
-    status = _g("status", "--porcelain")
-    return {"path": str(p), "commit": commit, "dirty": bool(status),
-            "dirty_files": len([l for l in status.splitlines() if l.strip()])}
+    status = [l for l in _g("status", "--porcelain").splitlines() if l.strip()]
+    # Only TRACKED modifications mean "no commit reproduces this runtime". An
+    # untracked file (editor scratch, tooling AGENTS.md) does not change the
+    # installed package, so it is reported but does not fail provenance.
+    tracked = [l for l in status if not l.startswith("??")]
+    untracked = [l for l in status if l.startswith("??")]
+    return {"path": str(p), "commit": commit, "dirty": bool(tracked),
+            "dirty_files": len(tracked), "untracked_files": len(untracked)}
 
 def _disclosure():
     """The cost/settings ledger. best-vs-best only stays honest if the price each
@@ -108,6 +135,7 @@ def init():
         "config_sha": config_sha, "code_sha": _code_sha(),
         "disclosure": _disclosure(),          # peak settings + runtime provenance
         "required": [k for k, _ in REQUIRED],
+        "not_run": {k: v for k, v in NOT_RUN.items() if v},
         # keep prior step statuses when the run_id is unchanged (same setup),
         # so out-of-band cells (KL, throughput) survive a re-run of run_all.sh
         "status": prev if prev_id == run_id else {},
@@ -140,7 +168,7 @@ def check():
             stale.append(f"{rel} (runid={rid})")
         if man["status"].get(key, 0) not in (0, None):
             badstep.append(f"{key}={man['status'][key]}")
-    ok = not (missing or stale)
+    ok = not (missing or stale or badstep)   # a failed step never counts as COMPLETE
     n_bad = len(set(missing) | {s.split(' ')[0] for s in stale})
     verdict = "COMPLETE" if ok else ("INCOMPLETE" if n_bad == len(REQUIRED) else "PARTIAL")
     man["integrity"] = {"verdict": verdict, "missing": missing, "stale": stale, "failed_steps": badstep}

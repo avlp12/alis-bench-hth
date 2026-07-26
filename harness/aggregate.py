@@ -56,6 +56,31 @@ def primary(task, metrics):
             return metrics[key], se, key
     return None, None, None  # schema drift -> excluded from verdict, flagged loudly
 
+def truncation_rate(name):
+    """Fraction of lm-eval samples whose generation hit the token cap.
+
+    Critical for reasoning models: when a long thinking block eats the budget the
+    answer never appears, and an answer-extractor happily returns a number found
+    INSIDE the thinking. That scores as a wrong answer rather than a failed run,
+    silently converting 'the budget was too small' into 'the model is bad'.
+    """
+    import glob as _g
+    tot = cut = 0
+    for f in _g.glob(str(R / "lm_eval" / name / "**" / "samples_*.jsonl"), recursive=True):
+        try:
+            for line in open(f):
+                r = json.loads(line)
+                resps = r.get("resps") or r.get("filtered_resps") or []
+                txt = " ".join(x if isinstance(x, str) else str(x) for x in
+                               (resps[0] if resps and isinstance(resps[0], list) else resps))
+                tot += 1
+                # no terminator marker AND no short tail => almost certainly capped
+                if txt and not any(m in txt for m in ("</think>", "<|think:end|>")) and len(txt) > 6000:
+                    cut += 1
+        except Exception:
+            continue
+    return (cut, tot)
+
 def load_samples(name, task, base_metric, filt):
     """{(subtask,doc_id): score} from lm-eval --log_samples jsonl.
 
@@ -136,7 +161,9 @@ def load_hret(name):
     def _score(d):
         if isinstance(d, (int, float)): return d
         if not isinstance(d, dict): return None
-        # explicit keys only — never grab an arbitrary float
+        # HRET's EvaluationResult.to_dict() nests everything under "metrics";
+        # checking only the top level renders every Korean row as "unresolved".
+        if isinstance(d.get("metrics"), dict): d = d["metrics"]
         for k in ("accuracy", "score", "acc", "exact_match"):
             if k in d and isinstance(d[k], (int, float)): return d[k]
         return None
@@ -238,6 +265,21 @@ def main():
                f"- Motif win-rate **over all n**: {js.get('motif_winrate_overall')}  "
                f"(NOT the misleading 'vs decided'); judges: {js.get('judges')}",
                f"- judge agreement: {js.get('judge_agreement')} · verdict: **{js.get('verdict','?')}**"]
+
+    # ---- truncation: silent score corruption for reasoning models ----
+    md += ["", "## Truncation check (answers cut off before they appear)", ""]
+    trunc_bad = False
+    for n in ("motif", "solar"):
+        cut, tot = truncation_rate(n)
+        rate = (cut / tot) if tot else 0
+        flag = "🛑" if rate > 0.02 else "ok"
+        if rate > 0.02: trunc_bad = True
+        md.append(f"- {n}: {cut}/{tot} generations look capped ({rate:.1%}) {flag}")
+    if trunc_bad:
+        md.append("")
+        md.append("> 🛑 **Above 2% the scores are not trustworthy.** A capped generation has no "
+                  "answer, so the extractor returns something found inside the thinking block — "
+                  "scored as a wrong answer instead of a failed run. Raise MAX_TOKENS and re-run.")
 
     # ---- disclosed cost ledger: what each model SPENT to reach its peak ----
     disc = (json.loads((R / "run_manifest.json").read_text()).get("disclosure")

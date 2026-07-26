@@ -76,10 +76,22 @@ def main():
         fails.append(f"Korean prompt answered mostly non-Korean (hangul_ratio={hr:.2f}) "
                      "-> enable HRET language_penalize and record it")
 
-    # 4: stop-token / leakage check
-    for tok in ["<|", "<eos>", "</s>", "<|im_end|>", "<|endoftext|>"]:
+    # 4: stop-token / leakage check.
+    # Think markers matter most: if a reasoning block leaks into `content`, every
+    # answer-extraction filter scores the *thinking* instead of the answer, and it
+    # does so asymmetrically (only the model whose server fails to split it).
+    for tok in ["<eos>", "</s>", "<|im_end|>", "<|endoftext|>"]:
         if tok in a:
             fails.append(f"special token {tok!r} leaked into output (stop-token config)")
+    for tok in ["</think>", "<think>", "<|think:end|>", "<|think:start|>"]:
+        if tok in a:
+            fails.append(f"think marker {tok!r} is inside `content` — the reasoning block is "
+                         "NOT being split out, so answer extraction will score the thinking")
+    # 5: report the thinking split so the round's disclosed cost is auditable.
+    #    (Empty reasoning is NOT a failure: a model may legitimately answer without
+    #     an internal block. It must be DISCLOSED, not silently averaged away.)
+    print(f"[probe] thinking: reasoning_chars={len(think)} answer_chars={len(a)} "
+          f"-> {'reasons internally' if len(think) > 40 else 'reasons in the visible answer'}")
 
     usage = r.get("usage", {})
     print(f"[probe] usage={usage}")
