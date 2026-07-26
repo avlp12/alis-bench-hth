@@ -64,6 +64,12 @@ lm-eval's `--limit` applies **per subtask**, so group tasks need a divided limit
 
 English total ≈ 770 items at ~22 s/item.
 
+**R3 is ENGLISH ONLY (`KO_SUITE=off`); Korean is measured in the floor round.**
+⚠ **litellm's default timeout is 600 s — SHORTER than one Korean generation here.**
+Every item timed out and retried 3x (~90 min/item) and the error text was returned as
+the prediction. Set `HRET_TIMEOUT=3600`. The error guard caught it and aborted rather
+than scoring timeout strings as answers — that guard is load-bearing, do not remove it.
+
 **Korean is a different cost regime — measure, do not extrapolate from English.**
 Korean MCQA on the reference tier runs **~8.5 min/item** on Motif (≈20× the English
 rate: long prompts, deep reasoning). So the Korean suite is **2 datasets × 50 items**

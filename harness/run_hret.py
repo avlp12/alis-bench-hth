@@ -64,6 +64,13 @@ def main():
 
     evaluator = Evaluator()
     mode = os.environ.get("SUITE_MODE", "full")
+    if (os.environ.get("KO_SUITE", "on") or "").lower() in ("", "off", "none", "0"):
+        print("[hret] KO_SUITE=off — Korean leg NOT RUN for this round (recorded as such)")
+        (outdir / "_not_run.json").write_text(json.dumps(
+            {"reason": "KO_SUITE=off — Korean measured in a lighter tier where its "
+                       "10-15 min/item cost on reference-tier builds is affordable"},
+            ensure_ascii=False))
+        return
     DATASETS = datasets_for(mode)
     (outdir / "_suite.json").write_text(json.dumps(
         {"suite_mode": mode, "datasets": [d for d, _ in DATASETS]}, ensure_ascii=False))
@@ -92,6 +99,11 @@ def main():
             "top_p": top_p,
             "max_tokens": maxtok,           # room for thinking; record actual usage
             "seed": seed,
+            # litellm defaults to a 600 s timeout, which is SHORTER than a single
+            # Korean MCQA generation on a reference-tier build (measured 10-15 min).
+            # The result is a timeout plus three retries — ~90 min per item, and the
+            # error text is returned AS the prediction. Must be raised explicitly.
+            "timeout": int(os.environ.get("HRET_TIMEOUT", "3600")),
         }
         # ----------------------------------------------------------------
         # HRET_PENALIZE: off (default) | on | both

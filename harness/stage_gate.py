@@ -124,7 +124,7 @@ def s4_hret_backend():
         try:
             be = B(provider="openai", model_name=f"openai/{model}",
                    api_base=url.rstrip("/") + "/v1", api_key="sk-noauth",
-                   temperature=1.0, max_new_tokens=128)
+                   temperature=1.0, max_new_tokens=128, timeout=int(os.environ.get("HRET_TIMEOUT","3600")))
             out = be.generate_batch([{"input": "1+1은? 숫자만.", "reference": "2"}])
             pred = str(out[0].get("prediction") or "").strip()
             if pred.startswith("Error:"): bad(f"{side}: HRET backend -> {pred[:110]!r}")

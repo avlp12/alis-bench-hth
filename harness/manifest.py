@@ -27,8 +27,9 @@ def _required():
     every round to an unpublishable PARTIAL.
     """
     req = [("lm_eval.motif", "lm_eval/motif"), ("lm_eval.solar", "lm_eval/solar"),
-           ("hret.motif", "hret/motif"),       ("hret.solar", "hret/solar"),
            ("thru.motif", "throughput/motif.json"), ("thru.solar", "throughput/solar.json")]
+    if (os.environ.get("KO_SUITE", "on") or "").lower() not in ("", "off", "none", "0"):
+        req += [("hret.motif", "hret/motif"), ("hret.solar", "hret/solar")]
     if (os.environ.get("JUDGE_ENDPOINTS") or "").strip():
         req.append(("judge", "judge/pairwise.json"))
     if (os.environ.get("MOTIF_REF") or "").strip():
@@ -40,6 +41,8 @@ def _required():
 REQUIRED = _required()
 
 NOT_RUN = {  # recorded in the manifest so the report says N/A, never "missing"
+    "hret": None if (os.environ.get("KO_SUITE", "on") or "").lower() not in ("", "off", "none", "0")
+            else "Korean leg NOT RUN this round — measured in a lighter tier (10-15 min/item here)",
     "judge": None if (os.environ.get("JUDGE_ENDPOINTS") or "").strip() else
              "no neutral judges configured — open-generation NOT RUN",
     "kl.motif": None if (os.environ.get("MOTIF_REF") or "").strip() else
