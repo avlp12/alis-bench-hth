@@ -154,6 +154,17 @@ def s5_aggregate():
         h = d / "hret" / name; h.mkdir(parents=True)
         json.dump({"kmmlu": {"raw": {"metrics": {"accuracy": 0.6 + adv}}, "_primary": "raw"}},
                   open(h / "_summary.json", "w"))
+        # exercise the KOREAN PAIRED path — the gate previously passed while this
+        # code persisted nothing at all on the real HRET
+        json.dump([{"key": f"it{i}", "score": float(random.random() < 0.6 + adv)}
+                   for i in range(60)], open(h / "kmmlu_items.json", "w"))
+    # exercise the JUDGE length-control path
+    j = d / "judge"; j.mkdir(parents=True)
+    rows = [{"final": "motif" if i % 3 else "solar",
+             "answer_motif": "m" * (200 + 8 * i), "answer_solar": "s" * 200} for i in range(40)]
+    json.dump({"summary": {"n": 40, "motif_wins": 27, "solar_wins": 13, "semantic_ties": 0,
+                           "judges": ["a", "b"], "verdict": "motif"}, "rows": rows},
+              open(j / "pairwise.json", "w"))
     envv = dict(os.environ, RESULTS_DIR=str(d), BPW_TIER="gate", ALLOW_PARTIAL="1",
                 JUDGE_ENDPOINTS="", MOTIF_REF="", SOLAR_REF="")
     subprocess.run([sys.executable, str(HERE / "manifest.py"), "init"], env=envv,
@@ -166,6 +177,7 @@ def s5_aggregate():
         checks = {"paired verdict emitted": "mmlu_pro" in txt and ("motif" in txt or "INCONCLUSIVE" in txt),
                   "HRET metrics parsed (not '—')": "hret:kmmlu" in txt and "0.6" in txt.replace("0.60", "0.6"),
                   "plumbing-failure section present": "Plumbing failures" in txt,
+                  "KOREAN paired row produced": "hret:kmmlu" in txt and "n=" in txt,
                   "disclosed-cost section present": "Disclosed cost" in txt}
         for k, v in checks.items(): ok(k) if v else bad(f"aggregate: {k} FAILED")
     import shutil; shutil.rmtree(d, ignore_errors=True)

@@ -116,7 +116,7 @@ def main():
                 # yields a plausible-looking 0% instead of an error.
                 samples = got.get("samples") or []
                 errs = sum(1 for s in samples
-                           if isinstance(s, dict) and str(s.get("prediction", "")).startswith("Error:"))
+                           if isinstance(s, dict) and str(s.get("prediction", "")).lower().startswith("error:"))
                 if samples and errs:
                     rate = errs / len(samples)
                     msg = (f"[hret] {ds}: {errs}/{len(samples)} predictions are backend ERROR strings "
@@ -136,8 +136,20 @@ def main():
             for i, s in enumerate(prim.get("samples") or []):
                 if not isinstance(s, dict):
                     continue
-                key = str(s.get("id") or s.get("doc_id") or s.get("input", "")[:120] or i)
-                sc = s.get("is_correct", s.get("correct", s.get("score")))
+                # Key on a hash of the FULL input plus the subset: KMMLU's fixed
+                # template prefix is ~103 chars, so input[:120] leaves almost no
+                # question text and formulaic openers collide — colliding keys are
+                # silently collapsed last-wins when the dict is built.
+                import hashlib as _h
+                raw = f"{s.get('_subset_name','')}|{s.get('input','')}"
+                key = s.get("id") or s.get("doc_id") or _h.sha256(raw.encode()).hexdigest()[:24]
+                key = str(key)
+                # HRET's StringMatchEvaluator writes correctness into
+                # sample["evaluation"]["is_correct"] — NOT at the top level. Reading
+                # the top level yields None for every sample, so nothing is persisted
+                # and the Korean half silently degrades to marginal-only.
+                ev = s.get("evaluation") if isinstance(s.get("evaluation"), dict) else {}
+                sc = ev.get("is_correct", s.get("is_correct", s.get("correct", s.get("score"))))
                 if isinstance(sc, bool):
                     sc = float(sc)
                 if isinstance(sc, (int, float)):
@@ -146,6 +158,19 @@ def main():
                 (outdir / f"{ds}_items.json").write_text(
                     json.dumps(items, ensure_ascii=False))
                 payload["_n_items"] = len(items)
+            elif prim.get("samples"):
+                msg = (f"[hret] {ds}: {len(prim['samples'])} samples but 0 per-item scores "
+                       "extracted — the Korean suite would silently fall back to "
+                       "marginal-only. The field layout changed; fix the extraction.")
+                if mode == "full": sys.exit(msg)
+                print(msg, file=sys.stderr)
+            # HRET's Evaluator.run swallows pipeline failures and RETURNS a result
+            # with metrics={"pipeline_error": ...} and samples=[] — the except below
+            # never fires, so check explicitly.
+            if isinstance(prim.get("metrics"), dict) and prim["metrics"].get("pipeline_error"):
+                msg = f"[hret] {ds}: pipeline_error {prim['metrics']['pipeline_error']}"
+                if mode == "full": sys.exit(msg)
+                print(msg, file=sys.stderr)
             payload["_primary"] = "raw" if "raw" in payload else "penalized"
             payload["_penalize_mode"] = pen_mode
             if ds in CONTAMINATED:

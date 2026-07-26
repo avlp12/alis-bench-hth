@@ -149,10 +149,15 @@ def holm(pvals, alpha=0.05):
             rejected = False; sig[i] = False
     return sig
 
-def verdict(lo, hi, sig):
+MIN_PAIRED_N = int(os.environ.get("MIN_PAIRED_N", "30"))
+
+def verdict(lo, hi, sig, n=None):
     """Directional call requires BOTH the CI to clear the equivalence margin AND
     Holm-corrected significance."""
     if lo is None: return "no-paired"
+    # A 1-item intersection produces p=0.0 and a zero-width CI, which Holm happily
+    # calls significant. Require a preregistered minimum before any directional call.
+    if n is not None and n < MIN_PAIRED_N: return f"underpowered(n={n})"
     if not sig:    return "INCONCLUSIVE"
     if lo > MARGIN:  return "motif"
     if hi < -MARGIN: return "solar"
@@ -262,7 +267,7 @@ def main():
            "|---|---|---|---|---|---|---|"]
     rows = []
     for i, s in enumerate(stats):
-        vd = verdict(s["lo"], s["hi"], sig.get(i, False))
+        vd = verdict(s["lo"], s["hi"], sig.get(i, False), s["n"])
         ci = "—" if s["lo"] is None else f"{s['dmean']:+.3f} [{s['lo']:+.3f}, {s['hi']:+.3f}] (n={s['n']})"
         pp = "—" if s["p"] is None else f"{s['p']:.3f}"
         md.append(f"| {s['task']} | {s['base']}[{s['filt'] or '-'}] | {s['mv']:.3f}±{s['mse'] or 0:.3f} | "

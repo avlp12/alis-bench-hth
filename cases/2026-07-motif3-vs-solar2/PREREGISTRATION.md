@@ -37,7 +37,7 @@ Anything not listed is exploratory and may not be reported as a result.
 | domain | tasks | harness |
 |---|---|---|
 | EN reasoning/math/IF | `mmlu_pro`, `bbh`, `gsm8k_cot`, `minerva_math`, `ifeval` | lm-eval 0.4.9, generative |
-| KO knowledge/reasoning | `kmmlu`⚠, `haerae`, `hrm8k`, `click`, `kormedqa` | HRET 0.1.0 |
+| KO knowledge/reasoning | `kmmlu`⚠, `haerae_bench`, `hrm8k`, `click`, `kormedmcqa` | HRET 0.1.0 |
 | KO open generation | LogicKor corpus (pinned hash: ______) | pairwise, ≥2 judges |
 
 ⚠ **Contamination disclosure:** HRET 0.1.0 does **not** ship KMMLU-Redux/Pro or
