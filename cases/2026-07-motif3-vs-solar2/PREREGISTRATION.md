@@ -51,6 +51,21 @@ HumanEval+/MBPP+, AIME/HMMT, RULER/long-context. Each requires its own harness.
 
 ## 3. Peak settings (each side declares its own, frozen here)
 
+Three tiers per side, quantized independently by each team and paired by ROLE
+(not by matched bpw — the protocol explicitly rejects matched-recipe quantization):
+
+| tier | Motif (alis-dwq / avlp12) | Solar (Kimi K3) | status |
+|---|---|---|---|
+| floor | 2.3bpw · 85 GB | F-v2 · 68 GB | first pairing to run |
+| mid | 4.5bpw · 167 GB | Q-v3 · 146 GB | |
+| reference (KL anchor) | 8bit · 334 GB | T · 266 GB | ⚠ Motif 8bit KNOWN BROKEN, rebuilding |
+
+⚠ **Asymmetric KL anchor (2026-07-26).** The Motif 8-bit reference build is
+defective (`mx.split` silent corruption above 2³¹ elements, built before the
+workaround; reproduced at greedy, publicly flagged). Until it is rebuilt, Motif
+has **no KL anchor**, so the quantization-cost cell must be reported as MISSING
+for Motif — never as zero, and never compared against Solar's KL.
+
 | | Motif | Solar |
 |---|---|---|
 | build | ______ | ______ |
