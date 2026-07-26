@@ -36,3 +36,11 @@ codex exec --ignore-user-config --ignore-rules --ephemeral --skip-git-repo-check
 Output schemas must set `additionalProperties: false` on **every** object (OpenAI
 strict-schema requirement) or the request 400s. Note: `-s read-only` has no network,
 so codex cannot do web research — use a web-capable agent for literature work.
+
+**Known limitation (2026-07-26).** The isolation flags fixed *which prompt it answers*,
+but four attempts produced no usable analysis: three returned unrelated documents
+(pre-flags), and the fourth — correctly isolated and schema-constrained — read the
+files (197 KB of tool output) yet emitted zero findings on a codebase where two other
+review rounds each found 8–18 real defects. Do not rely on codex for deep adversarial
+code review; use it, if at all, only for a cheap second opinion whose absence of
+findings means nothing.
