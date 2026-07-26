@@ -51,8 +51,36 @@ HumanEval+/MBPP+, AIME/HMMT, RULER/long-context. Each requires its own harness.
 
 ## 3. Peak settings (each side declares its own, frozen here)
 
-Three tiers per side, quantized independently by each team and paired by ROLE
-(not by matched bpw — the protocol explicitly rejects matched-recipe quantization):
+### Series structure — THREE ROUNDS, all reported
+
+This matchup runs **one tier at a time, and each round is DISCLOSED as soon as it
+finishes** — results are not held back until the series ends:
+
+| round | pairing | runs when |
+|---|---|---|
+| **R1 floor** | Motif 2.3bpw ↔ Solar F-v2 | first (both smallest; smoke + real result) |
+| **R2 mid** | Motif 4.5bpw ↔ Solar Q-v3 | after R1 |
+| **R3 reference** | Motif 8bit ↔ Solar T | last (needs the Motif 8bit rebuild) |
+
+**Binding disclosure rule.** Every round is published when it completes, whatever it
+says — including rounds the Motif side loses. A round may not be withheld, quietly
+delayed, or dropped from the writeup because the result is unfavourable, and no
+single round may be presented as "the" result of the series.
+
+Each round is disclosed as: the round's `report.md` + `run_manifest.json` (settings,
+runtime commits, disclosed token cost) committed to `cases/2026-07-motif3-vs-solar2/
+results/<round>/`, plus a short public note. Publishing a round **before** the next
+one runs is deliberate: it prevents choosing which tier to report after seeing all
+three. If a round cannot run, the reason is recorded here as a dated amendment
+before the next round starts.
+
+Each round gets its own `run_id`, manifest, and report under
+`results/<round>/`; `series.py` rolls them up. Because three rounds means three
+families of tests, per-round Holm correction stands and the **series-level claim
+requires agreement across rounds** — a single-round win is reported as exactly that.
+
+Tiers are paired by ROLE, not matched bpw — the protocol explicitly rejects
+matched-recipe quantization:
 
 | tier | Motif (alis-dwq / avlp12) | Solar (Kimi K3) | status |
 |---|---|---|---|

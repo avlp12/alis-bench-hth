@@ -18,19 +18,21 @@ case "$which" in
   motif)
     MODEL="${2:-$MOTIF_MODEL}"; PORT="${3:-8081}"
     export PYTHONPATH="$MLXLM_FORK:${PYTHONPATH:-}"    # @motif model class
+    PY="${MOTIF_PYTHON:-python3}"; ADAPTER="${MOTIF_ADAPTER:-}"
     ;;
   solar)
     MODEL="${2:-$SOLAR_MODEL}"; PORT="${3:-8082}"
-    # If Solar's MLX model class lives in a separate fork, put it on PYTHONPATH:
-    export PYTHONPATH="${SOLAR_FORK:-}${SOLAR_FORK:+:}${PYTHONPATH:-}"
+    # Solar runs from Kimi's venv (editable fork with the solar_open2 class);
+    # do NOT put its fork on PYTHONPATH as well — the venv already resolves it.
+    PY="${SOLAR_PYTHON:-python3}"; ADAPTER="${SOLAR_ADAPTER:-}"
     ;;
   *) echo "usage: serve.sh motif|solar [model_dir] [port]"; exit 1;;
 esac
 
 echo "[serve] $which  model=$MODEL  port=$PORT"
-echo "[serve] PYTHONPATH=${PYTHONPATH:-<system mlx_lm>}"
-exec python3 -m mlx_lm.server \
-  --model "$MODEL" \
+echo "[serve] python=$PY  adapter=${ADAPTER:-<none>}"
+exec "$PY" -m mlx_lm.server \
+  --model "$MODEL" ${ADAPTER:+--adapter-path "$ADAPTER"} \
   --host 0.0.0.0 --port "$PORT" \
   --trust-remote-code \
   --log-level INFO
