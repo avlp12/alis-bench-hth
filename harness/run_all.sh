@@ -10,6 +10,7 @@ here="$(cd "$(dirname "$0")" && pwd)"; source "$here/config.env"
 mkdir -p "$RESULTS_DIR"/{lm_eval,hret,judge,throughput,kl}
 
 RUN_ID="$(python3 "$here/manifest.py" init)"
+bash "$here/host_probe.sh"   # serving-host facts -> hosts.json (report refuses throughput without it)
 echo "== run_id=$RUN_ID  suite_mode=${SUITE_MODE:-full}  -> $RESULTS_DIR =="
 
 rec(){ python3 "$here/manifest.py" record "$1" "$2"; [ "$2" -eq 0 ] && python3 "$here/manifest.py" stamp "$3" || echo "  [$1] FAILED rc=$2 (recorded, will block aggregation)"; }

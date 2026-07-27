@@ -51,26 +51,28 @@ BOOT = int(os.environ.get("BOOTSTRAP_N", "2000"))
 SEED = int(os.environ.get("SEED", "1234"))
 
 # ---- explicit metric schema: ordered acceptable "metric,filter" keys per task ----
+# Suite amended 2026-07-27 (see SUITE_PROPOSAL.md + preregistration amendment):
+# bbh_cot_zeroshot dropped (6 items/subtask was the thinnest slice in the suite),
+# gsm8k_cot_zeroshot dropped (saturated at the frontier — 150 items bought almost
+# no discrimination). Every key below verified against the INSTALLED lm-eval
+# 0.4.12 task configs by stage_gate stage 6 — keys are the exact strings the
+# tasks emit, not what their names suggest.
 METRIC_SCHEMA = {
     "mmlu_pro":           ["exact_match,custom-extract", "exact_match,none"],
-    # bbh ZERO-shot filters are flexible-extract / strict-match; "get-answer"
-    # exists only in the cot_FEWSHOT config. The group's own aggregate_metric_list
-    # averages exact_match over filter_list=flexible-extract, so that is the group
-    # row's key. Verified against the installed lm-eval 0.4.12 yamls 2026-07-27;
-    # the previous keys matched NOTHING, which excluded bbh from the verdict family
-    # while still reporting the round COMPLETE.
-    "bbh_cot_zeroshot":   ["exact_match,flexible-extract", "exact_match,strict-match"],
-    # gsm8k zero-shot: flexible-extract first. strict-match wants the exact
-    # sentence form; flexible takes the last number and is robust to a model that
-    # solves the problem while phrasing the conclusion its own way.
-    "gsm8k_cot_zeroshot": ["exact_match,flexible-extract", "exact_match,strict-match"],
-    # minerva exact_match requires the Minerva incantation ("Final Answer: The
-    # final answer is X. I hope it is correct.") that only its 4-shot exemplars
-    # taught. math_verify checks mathematical equivalence and is format-free.
-    "minerva_math":       ["math_verify,none", "exact_match,none"],
+    # gpqa strict-match captures whatever follows "The answer is " (parens or
+    # not, exact_match normalizes case+punctuation) — with our instruction that
+    # is the robust one. flexible-extract needs a literal "(X)" in the output
+    # and silently misses a model that writes "The answer is B".
+    "gpqa_diamond_cot_zeroshot": ["exact_match,strict-match", "exact_match,flexible-extract"],
+    # aime25 scores in process_results ($...$/\boxed{} extraction + is_equiv);
+    # no filters, so the bare key is the only key.
+    "aime25":             ["exact_match,none"],
+    # minerva exact_match requires the Minerva incantation that only fewshot
+    # exemplars teach; math_verify checks mathematical equivalence format-free.
+    "minerva_math500":    ["math_verify,none", "exact_match,none"],
     "ifeval":             ["prompt_level_strict_acc,none", "inst_level_strict_acc,none"],
 }
-GROUPS = {"bbh_cot_zeroshot": "bbh"}  # group tasks whose samples land in per-subtask files
+GROUPS = {}  # task -> sample-file prefix, when a group's files are named differently
 
 def load_results(name):
     """task -> metrics dict, from lm-eval results*.json.

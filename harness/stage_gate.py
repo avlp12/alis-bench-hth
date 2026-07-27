@@ -55,7 +55,8 @@ def s1_imports():
 def s2_tasks():
     stage(2, "every scored task actually loads (else it dies mid-run)")
     lm = HERE.parent / ".venv-lmeval/bin/python"
-    tasks = os.environ.get("TASKS", "mmlu_pro,bbh_cot_zeroshot,gsm8k_cot_zeroshot,minerva_math") + ",ifeval"
+    tasks = os.environ.get("TASKS", "gpqa_diamond_cot_zeroshot,aime25,mmlu_pro,minerva_math500,ifeval")
+    if "ifeval" not in tasks: tasks += ",ifeval"
     code = ("from lm_eval.tasks import TaskManager;tm=TaskManager()\n"
             "import sys\n"
             f"ts='{tasks}'.split(',')\n"
@@ -266,16 +267,33 @@ print(json.dumps(out))
         bad(f"sampling plan does not resolve: {(p.stderr or p.stdout).strip().splitlines()[-1][:160]}")
         return
     plan = dict(l[len("PLAN "):].split("=", 1) for l in p.stdout.splitlines() if l.startswith("PLAN "))
+    if not plan:
+        bad("PLAN_ONLY emitted no plan lines at all"); return
+    # populations of the full-run tasks, from the installed datasets (checked above)
+    FULL_N = {"gpqa_diamond_cot_zeroshot": 198, "aime25": 30}
     total = 0
-    # group tasks: --limit is PER LEAF TASK, so realized n = limit x n_subtasks
-    SUBTASKS = {"mmlu_pro": 14, "bbh_cot_zeroshot": 27, "gsm8k_cot_zeroshot": 1,
-                "minerva_math": 7, "ifeval": 1}
-    for t, n in plan.items():
-        if not n: bad(f"{t}: NO --limit would be passed (full dataset ~thousands of items)"); continue
-        total += int(n) * SUBTASKS.get(t, 1)
-        ok(f"{t}: --limit {n}  (x{SUBTASKS.get(t,1)} subtasks)")
-    if plan and all(plan.values()):
-        ok(f"realized sample ≈ {total} items/model")
+    for t, v in sorted(plan.items()):
+        if v == "full":
+            n = FULL_N.get(t)
+            if n is None:
+                bad(f"{t}: plan=full but its population is not on record — a 'full' run "
+                    f"of an unpriced dataset is how the 25k-item plan happened"); continue
+            total += n; ok(f"{t}: FULL ({n} items)")
+        elif v.startswith("samples:"):
+            n = v.split(":", 1)[1]
+            if not n.isdigit() or int(n) == 0:
+                bad(f"{t}: samples plan resolves to '{n}' — frozen sample file missing or empty"); continue
+            total += int(n); ok(f"{t}: frozen seeded sample ({n} items)")
+        elif v.isdigit():
+            total += int(n := int(v)); ok(f"{t}: --limit {v} (smoke path — FIRST-N, not a sample)")
+        else:
+            bad(f"{t}: unrecognized plan '{v}'")
+    # every scored task must have a plan line — a task in TASKS but absent here
+    # means plan_for() fell through, which is an abort at run time
+    for t in os.environ.get("TASKS", "").split(","):
+        if t and t not in plan:
+            bad(f"{t} is in TASKS but PLAN_ONLY emitted no plan for it")
+    ok(f"realized total = {total} items/model")
 
 # ---------------------------------------------------------------- main
 if __name__ == "__main__":

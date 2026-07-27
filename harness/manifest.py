@@ -108,15 +108,22 @@ def _disclosure():
         "protocol": {"equiv_margin": e("EQUIV_MARGIN"), "bootstrap_n": e("BOOTSTRAP_N"),
                      "min_paired_n": e("MIN_PAIRED_N", "30"),
                      "fewshot": e("FEWSHOT", "0"),
-                     # per-task limits are what actually reaches lm-eval (--limit is
-                     # PER LEAF TASK). A bare LIMIT is the smoke override and, when
-                     # set, wins for every task — record both so the manifest can
-                     # never say "full" while a sampling plan was in force.
-                     "limit": e("LIMIT", "") or "per_task",
-                     "limit_per_task": {t: e(v, "") or "full" for t, v in (
-                         ("mmlu_pro", "LIMIT_MMLU_PRO"), ("bbh_cot_zeroshot", "LIMIT_BBH"),
-                         ("gsm8k_cot_zeroshot", "LIMIT_GSM8K"), ("minerva_math", "LIMIT_MINERVA"),
-                         ("ifeval", "LIMIT_IFEVAL"))},
+                     # the per-task plan is what actually reaches lm-eval: "full",
+                     # "samples" (frozen seeded indices), or an int (--limit smoke).
+                     # A bare LIMIT is the smoke override and wins for every task —
+                     # record both so the manifest can never claim a plan that was
+                     # not in force.
+                     "limit": e("LIMIT", "") or "per_task_plan",
+                     "task_plan": {t: e(v, "") or "MISSING" for t, v in (
+                         ("gpqa_diamond_cot_zeroshot", "PLAN_GPQA"), ("aime25", "PLAN_AIME25"),
+                         ("mmlu_pro", "PLAN_MMLU_PRO"), ("minerva_math500", "PLAN_MINERVA"),
+                         ("ifeval", "PLAN_IFEVAL"))},
+                     # item identity is part of the frozen plan: hash of the seeded
+                     # sample file, so "which items" cannot drift after the fact
+                     "samples_file": e("SAMPLES_FILE", ""),
+                     "samples_sha256": (hashlib.sha256(
+                         Path(e("SAMPLES_FILE")).read_bytes()).hexdigest()
+                         if e("SAMPLES_FILE") and Path(e("SAMPLES_FILE")).exists() else None),
                      "tasks": e("TASKS", "") or "<default>",
                      "format_instruction": e("FORMAT_INSTRUCTION", ""),
                      "num_concurrent": e("NUM_CONCURRENT", "4")},

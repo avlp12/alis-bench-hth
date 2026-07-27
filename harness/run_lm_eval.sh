@@ -20,59 +20,81 @@ OUT="$RESULTS_DIR/lm_eval/$NAME"; mkdir -p "$OUT"
 # best-vs-best: generous CoT budget for peak/thinking; probes log tokens actually spent
 GEN_TOKS="$MAX_TOKENS"
 
-# Generative, contamination-aware core set (all confirmed present in lm-eval 0.4.9):
-#   mmlu_pro   -> hard knowledge (answer-extraction)
-#   bbh        -> Big-Bench-Hard CoT
-#   gsm8k_cot  -> grade-school math CoT
-#   minerva_math -> MATH (competition math)
-#   ifeval     -> verifiable instruction following (judge-free -> most objective)
-# Purpose-built ZERO-SHOT variants — their filters expect chat-style output.
-# (bbh/gsm8k_cot are the *fewshot* configs; forcing them to 0-shot leaves filters
-#  and stop-sequences tuned for exemplar mimicry, which scores format-fit.)
-# ifeval is EXCLUDED here and run separately: it scores per-item instruction
-# following, so any injected global format instruction corrupts it by construction.
-TASKS="${TASKS:-mmlu_pro,bbh_cot_zeroshot,gsm8k_cot_zeroshot,minerva_math}"
+# Suite (amended 2026-07-27, after the token-cost probe): natively small, hard,
+# generative sets run COMPLETE where affordable; big sets get a SEEDED-RANDOM
+# frozen sample, never a head-of-dataset --limit slice. Published-benchmark
+# practice (Artificial Analysis, HELM) runs small sets whole and never slices
+# thin; that is what makes our gpqa/aime numbers directly comparable.
+#   gpqa_diamond_cot_zeroshot -> hard science, run COMPLETE (198), AA-comparable
+#   aime25                    -> competition math, COMPLETE (30), boxed-answer scoring
+#   mmlu_pro                  -> broad knowledge, seeded sample (nothing small covers it)
+#   minerva_math500           -> general math, seeded sample of the curated 500
+#   ifeval                    -> rule-verifiable instruction following, seeded sample
+TASKS="${TASKS:-gpqa_diamond_cot_zeroshot,aime25,mmlu_pro,minerva_math500,ifeval}"
 
-# ---- per-task item budget -------------------------------------------------
-# lm-eval's --limit applies PER LEAF TASK, so for a group the realized n is
-# limit x n_subtasks:
-#   mmlu_pro 11x14=154   bbh 6x27=162   gsm8k 150x1=150
-#   minerva 22x7=154     ifeval 150x1=150            -> 770 items/model
-# which is the number frozen in the preregistration. A single invocation with
-# --tasks a,b,c CANNOT express per-task limits, so each task is run separately;
-# aggregate.py merges every results*.json under the output dir (it already had
-# to, for the separate ifeval run).
-# LIMIT, if set, overrides everything — that is the smoke/stage-gate path.
-task_limit() {
+# ---- per-task item plan ---------------------------------------------------
+# plan values: "full" (whole dataset, on purpose), "samples" (frozen seeded
+# indices from $SAMPLES_FILE via --samples), or an integer (--limit; smoke only —
+# --limit takes the FIRST N docs, which is not a sample).
+# A bare LIMIT overrides everything: that is the smoke/stage-gate path.
+# Fail closed: a task with no plan aborts — round 4 proved a plan that lives
+# only in a config file nothing reads is how ~25k items nearly got scored.
+plan_for() {
   [ -n "${LIMIT:-}" ] && { echo "$LIMIT"; return; }
+  local v
   case "$1" in
-    mmlu_pro)            echo "${LIMIT_MMLU_PRO:-}";;
-    bbh_cot_zeroshot)    echo "${LIMIT_BBH:-}";;
-    gsm8k_cot_zeroshot)  echo "${LIMIT_GSM8K:-}";;
-    minerva_math)        echo "${LIMIT_MINERVA:-}";;
-    ifeval)              echo "${LIMIT_IFEVAL:-}";;
-    *)                   echo "";;
+    gpqa_diamond_cot_zeroshot) v="${PLAN_GPQA:-}";;
+    aime25)                    v="${PLAN_AIME25:-}";;
+    mmlu_pro)                  v="${PLAN_MMLU_PRO:-}";;
+    minerva_math500)           v="${PLAN_MINERVA:-}";;
+    ifeval)                    v="${PLAN_IFEVAL:-}";;
   esac
-}
-# Fail closed: an unlimited task is ~25k items (~3 weeks at the measured
-# 89 s/item) and would silently violate the frozen sampling plan. Running the
-# full dataset has to be asked for by name.
-require_limit() {
-  local t="$1" n; n="$(task_limit "$t")"
-  if [ -z "$n" ] && [ "${LIMIT_FULL_OK:-0}" != "1" ]; then
-    echo "[lm_eval] FATAL: no item limit for task '$t'." >&2
-    echo "  set LIMIT_<TASK> in config.env (the preregistered plan), or export" >&2
-    echo "  LIMIT_FULL_OK=1 to deliberately run the full dataset." >&2
-    exit 1
+  if [ -z "$v" ]; then
+    echo "[lm_eval] FATAL: no item plan for task '$1' — set PLAN_<TASK> in config.env" >&2
+    echo "ABORT"; return
   fi
-  echo "$n"
+  echo "$v"
+}
+
+# The frozen sample: {leaf_task: [doc indices]} drawn by draw_samples.py, hash
+# in the preregistration. --samples keys on LEAF names, so extract this task's
+# leaves from the frozen file (passing other tasks' entries is undefined).
+samples_json_for() {
+  python3 - "$SAMPLES_FILE" "$1" <<'PY'
+import json, sys
+m = json.load(open(sys.argv[1])); t = sys.argv[2]
+sub = {k: v for k, v in m.items() if k == t or k.startswith(t + "_")}
+sys.exit(f"no entries for {t} in samples file") if not sub else print(json.dumps(sub, separators=(",", ":")))
+PY
+}
+
+# Fairness is "same instruction for both MODELS", not "one instruction for all
+# TASKS": each task gets the instruction its INSTALLED extractor actually parses
+# (round-4 method: ask the installed config, don't assume).
+#   aime25's process_results extracts ONLY $...$ / \boxed{} — "The answer is X."
+#   parses on none of it, so the shared line would score obedience as failure.
+#   ifeval scores per-item instructions; ANY global instruction corrupts it.
+instruction_for() {
+  case "$1" in
+    aime25) printf '%s' 'End your reply with your final answer in \boxed{}.';;
+    ifeval) printf '';;
+    *)      printf '%s' "$FORMAT_INSTRUCTION";;
+  esac
 }
 
 # PLAN_ONLY=1 resolves and prints the sampling plan through THIS code path, then
 # exits without generating. stage_gate.py asserts on it — the check that would
 # have caught LIMIT_* being exported by config.env and read by nothing.
 if [ "${PLAN_ONLY:-0}" = "1" ]; then
-  for T in ${TASKS//,/ } ifeval; do echo "PLAN ${T}=$(require_limit "$T")"; done
+  for T in ${TASKS//,/ }; do
+    P="$(plan_for "$T")"
+    if [ "$P" = "samples" ]; then
+      N="$(samples_json_for "$T" | python3 -c 'import json,sys;print(sum(len(v) for v in json.load(sys.stdin).values()))')" || N="ERR"
+      echo "PLAN ${T}=samples:${N}"
+    else
+      echo "PLAN ${T}=${P}"
+    fi
+  done
   exit 0
 fi
 
@@ -103,53 +125,54 @@ LMEVAL_RUN=(run)
 # instruction removes the confound symmetrically.
 FEWSHOT="${FEWSHOT:-0}"
 # The instruction must match what the extractors ACTUALLY parse, verified against
-# the installed task configs (2026-07-26):
-#   bbh_cot_zeroshot / mmlu_pro : "(?<=the answer is )" / "answer is \(?([A-J])\)?"
-#   gsm8k_cot_zeroshot strict   : "The answer is (\-?[0-9\.\,]+)."
+# the installed lm-eval 0.4.12 task configs (2026-07-27):
+#   mmlu_pro custom-extract : "answer is \(?([A-J])\)?"
+#   gpqa strict-match       : "(?<=The answer is )(.*)(?=.)"
+#   minerva_math500         : math_verify (format-free equivalence) is primary
+# aime25 and ifeval do NOT take this line — see instruction_for() above.
 # A "#### <answer>" instruction (an earlier attempt) parses on NONE of them and
 # would have scored obedience to our own instruction as failure.
 FORMAT_INSTRUCTION="${FORMAT_INSTRUCTION:-End your reply with a final line of the form: The answer is <answer>.}"
 
 MODEL_ARGS="model=${MODEL},base_url=${URL}/v1/chat/completions,num_concurrent=${NUM_CONCURRENT:-4},max_retries=3,tokenized_requests=False,timeout=7200,seed=${SEED}"
-PLAN=""   # "task=limit;..." — recorded so the manifest states the realized plan
+PLAN=""   # "task=plan;..." — recorded so the manifest states the realized plan
 
 for T in ${TASKS//,/ }; do
-  N="$(require_limit "$T")"
-  echo "[lm_eval] $NAME task=$T limit=${N:-FULL}"
+  P="$(plan_for "$T")"; [ "$P" = "ABORT" ] && exit 1
+  INSTR="$(instruction_for "$T")"
+  EXTRA=()
+  case "$P" in
+    full)    ;;                                  # whole dataset, by name
+    samples) [ -f "${SAMPLES_FILE:-/nonexistent}" ] || {
+               echo "[lm_eval] FATAL: plan says 'samples' but SAMPLES_FILE=${SAMPLES_FILE:-<unset>} is missing" >&2
+               exit 1; }
+             EXTRA+=(--samples "$(samples_json_for "$T")") || exit 1;;
+    *)       EXTRA+=(--limit "$P");;             # integer: smoke path (FIRST-N, not a sample)
+  esac
+  # ifeval scores per-item instructions -> its INSTR is empty -> no system flag.
+  [ -n "$INSTR" ] && EXTRA+=(--system_instruction "$INSTR")
+  echo "[lm_eval] $NAME task=$T plan=$P instr=${INSTR:-<none>}"
   "$LMEVAL_BIN" "${LMEVAL_RUN[@]}" --model local-chat-completions \
     --model_args "$MODEL_ARGS" \
-    --tasks "$T" ${N:+--limit "$N"} \
+    --tasks "$T" \
     --num_fewshot "$FEWSHOT" \
-    --system_instruction "$FORMAT_INSTRUCTION" \
     --apply_chat_template \
     --gen_kwargs "temperature=${TEMP},top_p=${TOP_P},max_gen_toks=${GEN_TOKS}" \
     --seed "$SEED" --batch_size 1 --log_samples \
-    --output_path "$OUT"
-  PLAN="${PLAN}${T}=${N:-full};"
+    --output_path "$OUT" \
+    "${EXTRA[@]}"
+  PLAN="${PLAN}${T}=${P};"
 done
 
-# ifeval — SEPARATE run, NO --system_instruction. It scores each item against its
-# own constraints (end-with-phrase, wrap-in-quotes, JSON-only, language-only...),
-# so a global format instruction makes it measure system-vs-user priority instead
-# of instruction following, penalising the more system-obedient model.
-IFEVAL_N="$(require_limit ifeval)"
-echo "[lm_eval] $NAME ifeval limit=${IFEVAL_N:-FULL} (no system instruction, native zero-shot)"
-"$LMEVAL_BIN" "${LMEVAL_RUN[@]}" --model local-chat-completions \
-  --model_args "$MODEL_ARGS" \
-  --tasks ifeval ${IFEVAL_N:+--limit "$IFEVAL_N"} \
-  --apply_chat_template \
-  --gen_kwargs "temperature=${TEMP},top_p=${TOP_P},max_gen_toks=${GEN_TOKS}" \
-  --seed "$SEED" --batch_size 1 --log_samples \
-  --output_path "$OUT"
-PLAN="${PLAN}ifeval=${IFEVAL_N:-full};"
-
-python3 - "$OUT" "$TASKS" "$PLAN" <<'PY'
-import json, sys
-out, tasks, plan = sys.argv[1], sys.argv[2].split(","), sys.argv[3]
+python3 - "$OUT" "$TASKS" "$PLAN" "${SAMPLES_FILE:-}" <<'PY'
+import hashlib, json, sys
+out, tasks, plan, sfile = sys.argv[1], sys.argv[2].split(","), sys.argv[3], sys.argv[4]
 limits = dict(kv.split("=", 1) for kv in plan.strip(";").split(";") if kv)
-json.dump({"tasks_run": tasks + ["ifeval"],
-  "per_task_limit": limits,
-  "limit_semantics": "lm-eval --limit is PER LEAF TASK; group tasks realize limit x n_subtasks",
+sha = hashlib.sha256(open(sfile, "rb").read()).hexdigest() if sfile else None
+json.dump({"tasks_run": tasks,
+  "per_task_plan": limits,
+  "samples_file_sha256": sha,
+  "plan_semantics": "full=whole dataset; samples=frozen seeded doc indices (--samples); int=--limit smoke (FIRST-N)",
   "advertised_but_NOT_automated_here": [
     "gpqa_diamond (loglikelihood — run on the bf16/8-bit ref via HF backend)",
     "LiveCodeBench (external repo; point at the same base_url)",
