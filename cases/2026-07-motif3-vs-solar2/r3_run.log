@@ -1,0 +1,187 @@
+[R3 reference] Motif Q8 (epsilon) vs Solar T (gesicht) -> /Users/gesicht/alis-bench-hth/cases/2026-07-motif3-vs-solar2/results/reference
+== run_id=3cede9a8ee0c  suite_mode=full  -> /Users/gesicht/alis-bench-hth/cases/2026-07-motif3-vs-solar2/results/reference ==
+== 0. sanity / fairness pre-flight ==
+[probe] motif  http://10.0.0.2:8081  model=/Users/m3ms/motif3/models/Motif-3-Q8
+[probe] arithmetic -> content='1+1은 2입니다.' reasoning_len=0
+[probe] KO-consistency hangul_ratio=1.00  sample='한국의 급격한 고령화로 인해 국민연금 수급자는 빠르게 증가하는 반면, 보험료를 납부할 생산가능인구는 지속적으로 감소하고 있습니다. 이로 인해 연'
+[probe] thinking: reasoning_chars=367 answer_chars=241 -> reasons internally
+[probe] usage={'prompt_tokens': 20, 'completion_tokens': 206, 'total_tokens': 226, 'prompt_tokens_details': {'cached_tokens': 19}}
+[probe] OK — endpoint fair to benchmark
+[probe] solar  http://127.0.0.1:8082  model=/Users/gesicht/Documents/kimi/workspace/builds/T-q8
+[probe] arithmetic -> content='Thinking Process:\n\n1.  **Analyze the Request:**\n    *   Ques' reasoning_len=0
+[probe] KO-consistency hangul_ratio=0.48  sample='Thinking Process:\n\n1.  **Analyze the Request:**\n    *   Topic: Impact of South K'
+[probe] thinking: reasoning_chars=0 answer_chars=3703 -> reasons in the visible answer
+[probe] usage={'prompt_tokens': 23, 'completion_tokens': 1024, 'total_tokens': 1047, 'prompt_tokens_details': {'cached_tokens': 22}}
+[probe] OK — endpoint fair to benchmark
+== 1. lm-eval (both parallel) ==
+[R3 reference] Motif Q8 (epsilon) vs Solar T (gesicht) -> /Users/gesicht/alis-bench-hth/cases/2026-07-motif3-vs-solar2/results/reference
+[R3 reference] Motif Q8 (epsilon) vs Solar T (gesicht) -> /Users/gesicht/alis-bench-hth/cases/2026-07-motif3-vs-solar2/results/reference
+[lm_eval] solar tasks=mmlu_pro,bbh_cot_zeroshot,gsm8k_cot_zeroshot,minerva_math temp=1.0 top_p=1.0 max_gen_toks=32768 (peak) -> /Users/gesicht/alis-bench-hth/cases/2026-07-motif3-vs-solar2/results/reference/lm_eval/solar
+[lm_eval] motif tasks=mmlu_pro,bbh_cot_zeroshot,gsm8k_cot_zeroshot,minerva_math temp=1.0 top_p=0.95 max_gen_toks=32768 (peak) -> /Users/gesicht/alis-bench-hth/cases/2026-07-motif3-vs-solar2/results/reference/lm_eval/motif
+[lm_eval] solar task=mmlu_pro limit=11
+[lm_eval] motif task=mmlu_pro limit=11
+2026-07-27:09:25:37 WARNING  [config.evaluate_config:287] --limit SHOULD ONLY BE USED FOR TESTING. REAL METRICS SHOULD NOT BE COMPUTED USING LIMIT.
+2026-07-27:09:25:37 WARNING  [config.evaluate_config:287] --limit SHOULD ONLY BE USED FOR TESTING. REAL METRICS SHOULD NOT BE COMPUTED USING LIMIT.
+2026-07-27:09:25:37 INFO     [config.evaluate_config:307] Using default fewshot_as_multiturn=True.
+2026-07-27:09:25:37 INFO     [config.evaluate_config:307] Using default fewshot_as_multiturn=True.
+2026-07-27:09:25:41 INFO     [_cli.run:388] Selected Tasks: ['mmlu_pro']
+2026-07-27:09:25:41 INFO     [_cli.run:388] Selected Tasks: ['mmlu_pro']
+2026-07-27:09:25:42 INFO     [evaluator:214] Setting random seed to 1234 | Setting numpy seed to 1234 | Setting torch manual seed to 1234 | Setting fewshot manual seed to 1234
+2026-07-27:09:25:42 INFO     [evaluator:214] Setting random seed to 1234 | Setting numpy seed to 1234 | Setting torch manual seed to 1234 | Setting fewshot manual seed to 1234
+2026-07-27:09:25:42 WARNING  [evaluator:226] generation_kwargs: {'temperature': 1.0, 'top_p': 0.95, 'max_gen_toks': 32768} specified through cli, these settings will update set parameters in yaml tasks. Ensure 'do_sample=True' for non-greedy decoding!
+2026-07-27:09:25:42 INFO     [evaluator:239] Initializing local-chat-completions model, with arguments: {'model': '/Users/m3ms/motif3/models/Motif-3-Q8', 'base_url': 'http://10.0.0.2:8081/v1/chat/completions', 'num_concurrent': 4, 'max_retries': 3, 'tokenized_requests': False, 'timeout': 7200, 'seed': 1234}
+2026-07-27:09:25:42 WARNING  [evaluator:226] generation_kwargs: {'temperature': 1.0, 'top_p': 1.0, 'max_gen_toks': 32768} specified through cli, these settings will update set parameters in yaml tasks. Ensure 'do_sample=True' for non-greedy decoding!
+2026-07-27:09:25:42 INFO     [evaluator:239] Initializing local-chat-completions model, with arguments: {'model': '/Users/gesicht/Documents/kimi/workspace/builds/T-q8', 'base_url': 'http://127.0.0.1:8082/v1/chat/completions', 'num_concurrent': 4, 'max_retries': 3, 'tokenized_requests': False, 'timeout': 7200, 'seed': 1234}
+2026-07-27:09:25:42 INFO     [models.api_models:179] Using max length 2048 - 1
+2026-07-27:09:25:42 INFO     [models.api_models:179] Using max length 2048 - 1
+2026-07-27:09:25:42 INFO     [models.api_models:200] Using tokenizer None
+2026-07-27:09:25:42 INFO     [models.api_models:200] Using tokenizer None
+2026-07-27:09:26:02 INFO     [evaluator_utils:446] Selected tasks:
+2026-07-27:09:26:02 INFO     [evaluator_utils:462] Group: mmlu_pro
+2026-07-27:09:26:02 INFO     [evaluator_utils:470]   Task: mmlu_pro_biology (mmlu_pro/mmlu_pro_biology.yaml)
+2026-07-27:09:26:02 INFO     [evaluator_utils:470]   Task: mmlu_pro_business (mmlu_pro/mmlu_pro_business.yaml)
+2026-07-27:09:26:02 INFO     [evaluator_utils:470]   Task: mmlu_pro_chemistry (mmlu_pro/mmlu_pro_chemistry.yaml)
+2026-07-27:09:26:02 INFO     [evaluator_utils:470]   Task: mmlu_pro_computer_science (mmlu_pro/mmlu_pro_computer_science.yaml)
+2026-07-27:09:26:02 INFO     [evaluator_utils:470]   Task: mmlu_pro_economics (mmlu_pro/mmlu_pro_economics.yaml)
+2026-07-27:09:26:02 INFO     [evaluator_utils:470]   Task: mmlu_pro_engineering (mmlu_pro/mmlu_pro_engineering.yaml)
+2026-07-27:09:26:02 INFO     [evaluator_utils:470]   Task: mmlu_pro_health (mmlu_pro/mmlu_pro_health.yaml)
+2026-07-27:09:26:02 INFO     [evaluator_utils:470]   Task: mmlu_pro_history (mmlu_pro/mmlu_pro_history.yaml)
+2026-07-27:09:26:02 INFO     [evaluator_utils:470]   Task: mmlu_pro_law (mmlu_pro/mmlu_pro_law.yaml)
+2026-07-27:09:26:02 INFO     [evaluator_utils:470]   Task: mmlu_pro_math (mmlu_pro/mmlu_pro_math.yaml)
+2026-07-27:09:26:02 INFO     [evaluator_utils:470]   Task: mmlu_pro_other (mmlu_pro/mmlu_pro_other.yaml)
+2026-07-27:09:26:02 INFO     [evaluator_utils:470]   Task: mmlu_pro_philosophy (mmlu_pro/mmlu_pro_philosophy.yaml)
+2026-07-27:09:26:02 INFO     [evaluator_utils:470]   Task: mmlu_pro_physics (mmlu_pro/mmlu_pro_physics.yaml)
+2026-07-27:09:26:02 INFO     [evaluator_utils:470]   Task: mmlu_pro_psychology (mmlu_pro/mmlu_pro_psychology.yaml)
+2026-07-27:09:26:02 INFO     [evaluator:314] mmlu_pro_biology: Using gen_kwargs: {'until': ['Question:'], 'max_gen_toks': 32768, 'do_sample': False, 'temperature': 1.0, 'top_p': 0.95}
+2026-07-27:09:26:02 WARNING  [evaluator:333] Overwriting default num_fewshot of mmlu_pro_biology from 5 to 0
+2026-07-27:09:26:02 INFO     [evaluator:314] mmlu_pro_business: Using gen_kwargs: {'until': ['Question:'], 'max_gen_toks': 32768, 'do_sample': False, 'temperature': 1.0, 'top_p': 0.95}
+2026-07-27:09:26:02 WARNING  [evaluator:333] Overwriting default num_fewshot of mmlu_pro_business from 5 to 0
+2026-07-27:09:26:02 INFO     [evaluator:314] mmlu_pro_chemistry: Using gen_kwargs: {'until': ['Question:'], 'max_gen_toks': 32768, 'do_sample': False, 'temperature': 1.0, 'top_p': 0.95}
+2026-07-27:09:26:02 WARNING  [evaluator:333] Overwriting default num_fewshot of mmlu_pro_chemistry from 5 to 0
+2026-07-27:09:26:02 INFO     [evaluator:314] mmlu_pro_computer_science: Using gen_kwargs: {'until': ['Question:'], 'max_gen_toks': 32768, 'do_sample': False, 'temperature': 1.0, 'top_p': 0.95}
+2026-07-27:09:26:02 WARNING  [evaluator:333] Overwriting default num_fewshot of mmlu_pro_computer_science from 5 to 0
+2026-07-27:09:26:02 INFO     [evaluator:314] mmlu_pro_economics: Using gen_kwargs: {'until': ['Question:'], 'max_gen_toks': 32768, 'do_sample': False, 'temperature': 1.0, 'top_p': 0.95}
+2026-07-27:09:26:02 WARNING  [evaluator:333] Overwriting default num_fewshot of mmlu_pro_economics from 5 to 0
+2026-07-27:09:26:02 INFO     [evaluator:314] mmlu_pro_engineering: Using gen_kwargs: {'until': ['Question:'], 'max_gen_toks': 32768, 'do_sample': False, 'temperature': 1.0, 'top_p': 0.95}
+2026-07-27:09:26:02 WARNING  [evaluator:333] Overwriting default num_fewshot of mmlu_pro_engineering from 5 to 0
+2026-07-27:09:26:02 INFO     [evaluator:314] mmlu_pro_health: Using gen_kwargs: {'until': ['Question:'], 'max_gen_toks': 32768, 'do_sample': False, 'temperature': 1.0, 'top_p': 0.95}
+2026-07-27:09:26:02 WARNING  [evaluator:333] Overwriting default num_fewshot of mmlu_pro_health from 5 to 0
+2026-07-27:09:26:02 INFO     [evaluator:314] mmlu_pro_history: Using gen_kwargs: {'until': ['Question:'], 'max_gen_toks': 32768, 'do_sample': False, 'temperature': 1.0, 'top_p': 0.95}
+2026-07-27:09:26:02 WARNING  [evaluator:333] Overwriting default num_fewshot of mmlu_pro_history from 5 to 0
+2026-07-27:09:26:02 INFO     [evaluator:314] mmlu_pro_law: Using gen_kwargs: {'until': ['Question:'], 'max_gen_toks': 32768, 'do_sample': False, 'temperature': 1.0, 'top_p': 0.95}
+2026-07-27:09:26:02 WARNING  [evaluator:333] Overwriting default num_fewshot of mmlu_pro_law from 5 to 0
+2026-07-27:09:26:02 INFO     [evaluator:314] mmlu_pro_math: Using gen_kwargs: {'until': ['Question:'], 'max_gen_toks': 32768, 'do_sample': False, 'temperature': 1.0, 'top_p': 0.95}
+2026-07-27:09:26:02 WARNING  [evaluator:333] Overwriting default num_fewshot of mmlu_pro_math from 5 to 0
+2026-07-27:09:26:02 INFO     [evaluator:314] mmlu_pro_other: Using gen_kwargs: {'until': ['Question:'], 'max_gen_toks': 32768, 'do_sample': False, 'temperature': 1.0, 'top_p': 0.95}
+2026-07-27:09:26:02 WARNING  [evaluator:333] Overwriting default num_fewshot of mmlu_pro_other from 5 to 0
+2026-07-27:09:26:02 INFO     [evaluator:314] mmlu_pro_philosophy: Using gen_kwargs: {'until': ['Question:'], 'max_gen_toks': 32768, 'do_sample': False, 'temperature': 1.0, 'top_p': 0.95}
+2026-07-27:09:26:02 WARNING  [evaluator:333] Overwriting default num_fewshot of mmlu_pro_philosophy from 5 to 0
+2026-07-27:09:26:02 INFO     [evaluator:314] mmlu_pro_physics: Using gen_kwargs: {'until': ['Question:'], 'max_gen_toks': 32768, 'do_sample': False, 'temperature': 1.0, 'top_p': 0.95}
+2026-07-27:09:26:02 WARNING  [evaluator:333] Overwriting default num_fewshot of mmlu_pro_physics from 5 to 0
+2026-07-27:09:26:02 INFO     [evaluator:314] mmlu_pro_psychology: Using gen_kwargs: {'until': ['Question:'], 'max_gen_toks': 32768, 'do_sample': False, 'temperature': 1.0, 'top_p': 0.95}
+2026-07-27:09:26:02 WARNING  [evaluator:333] Overwriting default num_fewshot of mmlu_pro_psychology from 5 to 0
+2026-07-27:09:26:02 INFO     [api.task:312] Building contexts for mmlu_pro_biology on rank 0...
+  0%|          | 0/11 [00:00<?, ?it/s]100%|██████████| 11/11 [00:00<00:00, 3104.80it/s]
+2026-07-27:09:26:02 INFO     [api.task:312] Building contexts for mmlu_pro_business on rank 0...
+  0%|          | 0/11 [00:00<?, ?it/s]100%|██████████| 11/11 [00:00<00:00, 5737.76it/s]
+2026-07-27:09:26:02 INFO     [api.task:312] Building contexts for mmlu_pro_chemistry on rank 0...
+  0%|          | 0/11 [00:00<?, ?it/s]100%|██████████| 11/11 [00:00<00:00, 5984.09it/s]
+2026-07-27:09:26:02 INFO     [api.task:312] Building contexts for mmlu_pro_computer_science on rank 0...
+  0%|          | 0/11 [00:00<?, ?it/s]100%|██████████| 11/11 [00:00<00:00, 6482.70it/s]
+2026-07-27:09:26:02 INFO     [api.task:312] Building contexts for mmlu_pro_economics on rank 0...
+  0%|          | 0/11 [00:00<?, ?it/s]100%|██████████| 11/11 [00:00<00:00, 6571.34it/s]
+2026-07-27:09:26:02 INFO     [api.task:312] Building contexts for mmlu_pro_engineering on rank 0...
+  0%|          | 0/11 [00:00<?, ?it/s]100%|██████████| 11/11 [00:00<00:00, 6832.13it/s]
+2026-07-27:09:26:02 INFO     [api.task:312] Building contexts for mmlu_pro_health on rank 0...
+  0%|          | 0/11 [00:00<?, ?it/s]100%|██████████| 11/11 [00:00<00:00, 7078.45it/s]
+2026-07-27:09:26:02 INFO     [api.task:312] Building contexts for mmlu_pro_history on rank 0...
+  0%|          | 0/11 [00:00<?, ?it/s]100%|██████████| 11/11 [00:00<00:00, 7381.98it/s]
+2026-07-27:09:26:02 INFO     [api.task:312] Building contexts for mmlu_pro_law on rank 0...
+  0%|          | 0/11 [00:00<?, ?it/s]100%|██████████| 11/11 [00:00<00:00, 7373.72it/s]
+2026-07-27:09:26:02 INFO     [api.task:312] Building contexts for mmlu_pro_math on rank 0...
+  0%|          | 0/11 [00:00<?, ?it/s]100%|██████████| 11/11 [00:00<00:00, 7650.03it/s]
+2026-07-27:09:26:02 INFO     [api.task:312] Building contexts for mmlu_pro_other on rank 0...
+  0%|          | 0/11 [00:00<?, ?it/s]100%|██████████| 11/11 [00:00<00:00, 7879.99it/s]
+2026-07-27:09:26:02 INFO     [api.task:312] Building contexts for mmlu_pro_philosophy on rank 0...
+  0%|          | 0/11 [00:00<?, ?it/s]100%|██████████| 11/11 [00:00<00:00, 7806.66it/s]
+2026-07-27:09:26:02 INFO     [api.task:312] Building contexts for mmlu_pro_physics on rank 0...
+  0%|          | 0/11 [00:00<?, ?it/s]100%|██████████| 11/11 [00:00<00:00, 8082.93it/s]
+2026-07-27:09:26:02 INFO     [api.task:312] Building contexts for mmlu_pro_psychology on rank 0...
+  0%|          | 0/11 [00:00<?, ?it/s]100%|██████████| 11/11 [00:00<00:00, 8228.53it/s]
+2026-07-27:09:26:02 INFO     [evaluator:585] Running generate_until requests
+2026-07-27:09:26:02 INFO     [models.api_models:747] Tokenized requests are disabled. Context + generation length is not checked.
+Requesting API:   0%|          | 0/154 [00:00<?, ?it/s]2026-07-27:09:26:02 INFO     [evaluator_utils:446] Selected tasks:
+2026-07-27:09:26:02 INFO     [evaluator_utils:462] Group: mmlu_pro
+2026-07-27:09:26:02 INFO     [evaluator_utils:470]   Task: mmlu_pro_biology (mmlu_pro/mmlu_pro_biology.yaml)
+2026-07-27:09:26:02 INFO     [evaluator_utils:470]   Task: mmlu_pro_business (mmlu_pro/mmlu_pro_business.yaml)
+2026-07-27:09:26:02 INFO     [evaluator_utils:470]   Task: mmlu_pro_chemistry (mmlu_pro/mmlu_pro_chemistry.yaml)
+2026-07-27:09:26:02 INFO     [evaluator_utils:470]   Task: mmlu_pro_computer_science (mmlu_pro/mmlu_pro_computer_science.yaml)
+2026-07-27:09:26:02 INFO     [evaluator_utils:470]   Task: mmlu_pro_economics (mmlu_pro/mmlu_pro_economics.yaml)
+2026-07-27:09:26:02 INFO     [evaluator_utils:470]   Task: mmlu_pro_engineering (mmlu_pro/mmlu_pro_engineering.yaml)
+2026-07-27:09:26:02 INFO     [evaluator_utils:470]   Task: mmlu_pro_health (mmlu_pro/mmlu_pro_health.yaml)
+2026-07-27:09:26:02 INFO     [evaluator_utils:470]   Task: mmlu_pro_history (mmlu_pro/mmlu_pro_history.yaml)
+2026-07-27:09:26:02 INFO     [evaluator_utils:470]   Task: mmlu_pro_law (mmlu_pro/mmlu_pro_law.yaml)
+2026-07-27:09:26:02 INFO     [evaluator_utils:470]   Task: mmlu_pro_math (mmlu_pro/mmlu_pro_math.yaml)
+2026-07-27:09:26:02 INFO     [evaluator_utils:470]   Task: mmlu_pro_other (mmlu_pro/mmlu_pro_other.yaml)
+2026-07-27:09:26:02 INFO     [evaluator_utils:470]   Task: mmlu_pro_philosophy (mmlu_pro/mmlu_pro_philosophy.yaml)
+2026-07-27:09:26:02 INFO     [evaluator_utils:470]   Task: mmlu_pro_physics (mmlu_pro/mmlu_pro_physics.yaml)
+2026-07-27:09:26:02 INFO     [evaluator_utils:470]   Task: mmlu_pro_psychology (mmlu_pro/mmlu_pro_psychology.yaml)
+2026-07-27:09:26:02 INFO     [evaluator:314] mmlu_pro_biology: Using gen_kwargs: {'until': ['Question:'], 'max_gen_toks': 32768, 'do_sample': False, 'temperature': 1.0, 'top_p': 1.0}
+2026-07-27:09:26:02 WARNING  [evaluator:333] Overwriting default num_fewshot of mmlu_pro_biology from 5 to 0
+2026-07-27:09:26:02 INFO     [evaluator:314] mmlu_pro_business: Using gen_kwargs: {'until': ['Question:'], 'max_gen_toks': 32768, 'do_sample': False, 'temperature': 1.0, 'top_p': 1.0}
+2026-07-27:09:26:02 WARNING  [evaluator:333] Overwriting default num_fewshot of mmlu_pro_business from 5 to 0
+2026-07-27:09:26:02 INFO     [evaluator:314] mmlu_pro_chemistry: Using gen_kwargs: {'until': ['Question:'], 'max_gen_toks': 32768, 'do_sample': False, 'temperature': 1.0, 'top_p': 1.0}
+2026-07-27:09:26:02 WARNING  [evaluator:333] Overwriting default num_fewshot of mmlu_pro_chemistry from 5 to 0
+2026-07-27:09:26:02 INFO     [evaluator:314] mmlu_pro_computer_science: Using gen_kwargs: {'until': ['Question:'], 'max_gen_toks': 32768, 'do_sample': False, 'temperature': 1.0, 'top_p': 1.0}
+2026-07-27:09:26:02 WARNING  [evaluator:333] Overwriting default num_fewshot of mmlu_pro_computer_science from 5 to 0
+2026-07-27:09:26:02 INFO     [evaluator:314] mmlu_pro_economics: Using gen_kwargs: {'until': ['Question:'], 'max_gen_toks': 32768, 'do_sample': False, 'temperature': 1.0, 'top_p': 1.0}
+2026-07-27:09:26:02 WARNING  [evaluator:333] Overwriting default num_fewshot of mmlu_pro_economics from 5 to 0
+2026-07-27:09:26:02 INFO     [evaluator:314] mmlu_pro_engineering: Using gen_kwargs: {'until': ['Question:'], 'max_gen_toks': 32768, 'do_sample': False, 'temperature': 1.0, 'top_p': 1.0}
+2026-07-27:09:26:02 WARNING  [evaluator:333] Overwriting default num_fewshot of mmlu_pro_engineering from 5 to 0
+2026-07-27:09:26:02 INFO     [evaluator:314] mmlu_pro_health: Using gen_kwargs: {'until': ['Question:'], 'max_gen_toks': 32768, 'do_sample': False, 'temperature': 1.0, 'top_p': 1.0}
+2026-07-27:09:26:02 WARNING  [evaluator:333] Overwriting default num_fewshot of mmlu_pro_health from 5 to 0
+2026-07-27:09:26:02 INFO     [evaluator:314] mmlu_pro_history: Using gen_kwargs: {'until': ['Question:'], 'max_gen_toks': 32768, 'do_sample': False, 'temperature': 1.0, 'top_p': 1.0}
+2026-07-27:09:26:02 WARNING  [evaluator:333] Overwriting default num_fewshot of mmlu_pro_history from 5 to 0
+2026-07-27:09:26:02 INFO     [evaluator:314] mmlu_pro_law: Using gen_kwargs: {'until': ['Question:'], 'max_gen_toks': 32768, 'do_sample': False, 'temperature': 1.0, 'top_p': 1.0}
+2026-07-27:09:26:02 WARNING  [evaluator:333] Overwriting default num_fewshot of mmlu_pro_law from 5 to 0
+2026-07-27:09:26:02 INFO     [evaluator:314] mmlu_pro_math: Using gen_kwargs: {'until': ['Question:'], 'max_gen_toks': 32768, 'do_sample': False, 'temperature': 1.0, 'top_p': 1.0}
+2026-07-27:09:26:02 WARNING  [evaluator:333] Overwriting default num_fewshot of mmlu_pro_math from 5 to 0
+2026-07-27:09:26:02 INFO     [evaluator:314] mmlu_pro_other: Using gen_kwargs: {'until': ['Question:'], 'max_gen_toks': 32768, 'do_sample': False, 'temperature': 1.0, 'top_p': 1.0}
+2026-07-27:09:26:02 WARNING  [evaluator:333] Overwriting default num_fewshot of mmlu_pro_other from 5 to 0
+2026-07-27:09:26:02 INFO     [evaluator:314] mmlu_pro_philosophy: Using gen_kwargs: {'until': ['Question:'], 'max_gen_toks': 32768, 'do_sample': False, 'temperature': 1.0, 'top_p': 1.0}
+2026-07-27:09:26:02 WARNING  [evaluator:333] Overwriting default num_fewshot of mmlu_pro_philosophy from 5 to 0
+2026-07-27:09:26:02 INFO     [evaluator:314] mmlu_pro_physics: Using gen_kwargs: {'until': ['Question:'], 'max_gen_toks': 32768, 'do_sample': False, 'temperature': 1.0, 'top_p': 1.0}
+2026-07-27:09:26:02 WARNING  [evaluator:333] Overwriting default num_fewshot of mmlu_pro_physics from 5 to 0
+2026-07-27:09:26:02 INFO     [evaluator:314] mmlu_pro_psychology: Using gen_kwargs: {'until': ['Question:'], 'max_gen_toks': 32768, 'do_sample': False, 'temperature': 1.0, 'top_p': 1.0}
+2026-07-27:09:26:02 WARNING  [evaluator:333] Overwriting default num_fewshot of mmlu_pro_psychology from 5 to 0
+2026-07-27:09:26:02 INFO     [api.task:312] Building contexts for mmlu_pro_biology on rank 0...
+  0%|          | 0/11 [00:00<?, ?it/s]100%|██████████| 11/11 [00:00<00:00, 4865.27it/s]
+2026-07-27:09:26:02 INFO     [api.task:312] Building contexts for mmlu_pro_business on rank 0...
+  0%|          | 0/11 [00:00<?, ?it/s]100%|██████████| 11/11 [00:00<00:00, 7417.58it/s]
+2026-07-27:09:26:02 INFO     [api.task:312] Building contexts for mmlu_pro_chemistry on rank 0...
+  0%|          | 0/11 [00:00<?, ?it/s]100%|██████████| 11/11 [00:00<00:00, 7942.39it/s]
+2026-07-27:09:26:02 INFO     [api.task:312] Building contexts for mmlu_pro_computer_science on rank 0...
+  0%|          | 0/11 [00:00<?, ?it/s]100%|██████████| 11/11 [00:00<00:00, 8011.35it/s]
+2026-07-27:09:26:02 INFO     [api.task:312] Building contexts for mmlu_pro_economics on rank 0...
+  0%|          | 0/11 [00:00<?, ?it/s]100%|██████████| 11/11 [00:00<00:00, 8371.86it/s]
+2026-07-27:09:26:02 INFO     [api.task:312] Building contexts for mmlu_pro_engineering on rank 0...
+  0%|          | 0/11 [00:00<?, ?it/s]100%|██████████| 11/11 [00:00<00:00, 8493.62it/s]
+2026-07-27:09:26:02 INFO     [api.task:312] Building contexts for mmlu_pro_health on rank 0...
+  0%|          | 0/11 [00:00<?, ?it/s]100%|██████████| 11/11 [00:00<00:00, 8786.39it/s]
+2026-07-27:09:26:02 INFO     [api.task:312] Building contexts for mmlu_pro_history on rank 0...
+  0%|          | 0/11 [00:00<?, ?it/s]100%|██████████| 11/11 [00:00<00:00, 8865.75it/s]
+2026-07-27:09:26:02 INFO     [api.task:312] Building contexts for mmlu_pro_law on rank 0...
+  0%|          | 0/11 [00:00<?, ?it/s]100%|██████████| 11/11 [00:00<00:00, 8784.72it/s]
+2026-07-27:09:26:02 INFO     [api.task:312] Building contexts for mmlu_pro_math on rank 0...
+  0%|          | 0/11 [00:00<?, ?it/s]100%|██████████| 11/11 [00:00<00:00, 9007.68it/s]
+2026-07-27:09:26:02 INFO     [api.task:312] Building contexts for mmlu_pro_other on rank 0...
+  0%|          | 0/11 [00:00<?, ?it/s]100%|██████████| 11/11 [00:00<00:00, 9091.10it/s]
+2026-07-27:09:26:02 INFO     [api.task:312] Building contexts for mmlu_pro_philosophy on rank 0...
+  0%|          | 0/11 [00:00<?, ?it/s]100%|██████████| 11/11 [00:00<00:00, 8986.63it/s]
+2026-07-27:09:26:02 INFO     [api.task:312] Building contexts for mmlu_pro_physics on rank 0...
+  0%|          | 0/11 [00:00<?, ?it/s]100%|██████████| 11/11 [00:00<00:00, 9244.11it/s]
+2026-07-27:09:26:02 INFO     [api.task:312] Building contexts for mmlu_pro_psychology on rank 0...
+  0%|          | 0/11 [00:00<?, ?it/s]100%|██████████| 11/11 [00:00<00:00, 9266.39it/s]
+2026-07-27:09:26:02 INFO     [evaluator:585] Running generate_until requests
+2026-07-27:09:26:02 INFO     [models.api_models:747] Tokenized requests are disabled. Context + generation length is not checked.
+Requesting API:   0%|          | 0/154 [00:00<?, ?it/s]Requesting API:   1%|          | 1/154 [00:44<1:53:38, 44.56s/it]Requesting API:   1%|▏         | 2/154 [01:00<1:09:33, 27.46s/it]Requesting API:   1%|          | 1/154 [01:30<3:51:54, 90.95s/it]

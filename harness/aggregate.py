@@ -17,6 +17,35 @@ import numpy as np
 
 R = Path(os.environ.get("RESULTS_DIR", "."))
 TIER = os.environ.get("BPW_TIER", "?")
+
+def _run_started():
+    """Unix time this run's manifest was created — the freshness cutoff.
+
+    Every loader here globs RECURSIVELY and MERGES what it finds, so a leftover
+    results.json or samples_*.jsonl from an earlier smoke/aborted attempt in the
+    same results dir is silently folded into the scored report. Found live: 50
+    stale sample files and a results.json sat in R3's directory when the scored
+    run started. Round 4 caught the Korean instance of this; it is the same bug
+    in every language. Anything predating the manifest is NOT this run.
+    """
+    try:
+        import datetime as _dt
+        c = json.loads((R / "run_manifest.json").read_text())["created"]
+        return _dt.datetime.fromisoformat(c).timestamp() - 60   # 60s clock slack
+    except Exception:
+        return 0.0   # no manifest -> no cutoff (stage-gate fixtures, ad-hoc runs)
+
+RUN_T0 = _run_started()
+_SKIPPED_STALE = []
+
+def fresh(paths):
+    """Drop artifacts older than this run, remembering them for the report."""
+    keep = []
+    for f in paths:
+        try: mt = os.path.getmtime(f)
+        except OSError: continue
+        (keep if mt >= RUN_T0 else _SKIPPED_STALE).append(f)
+    return keep
 MARGIN = float(os.environ.get("EQUIV_MARGIN", "0.0"))      # practical-effect threshold (fraction)
 BOOT = int(os.environ.get("BOOTSTRAP_N", "2000"))
 SEED = int(os.environ.get("SEED", "1234"))
@@ -51,7 +80,7 @@ def load_results(name):
     rather than `results` — reading only `results` would silently drop them.
     """
     out = {}
-    for f in glob.glob(str(R / "lm_eval" / name / "**" / "results*.json"), recursive=True):
+    for f in fresh(glob.glob(str(R / "lm_eval" / name / "**" / "results*.json"), recursive=True)):
         try: j = json.load(open(f))
         except Exception: continue
         for block in ("results", "groups"):
@@ -84,7 +113,7 @@ def failure_rates(name):
     """
     import glob as _g
     tot = empty = miss = 0
-    for f in _g.glob(str(R / "lm_eval" / name / "**" / "samples_*.jsonl"), recursive=True):
+    for f in fresh(_g.glob(str(R / "lm_eval" / name / "**" / "samples_*.jsonl"), recursive=True)):
         try:
             for line in open(f):
                 r = json.loads(line); tot += 1
@@ -112,7 +141,7 @@ def load_samples(name, task, base_metric, filt):
     """
     pat = f"samples_{GROUPS.get(task, task)}*"
     d, seen_filters = {}, set()
-    for f in glob.glob(str(R / "lm_eval" / name / "**" / pat), recursive=True):
+    for f in fresh(glob.glob(str(R / "lm_eval" / name / "**" / pat), recursive=True)):
         st = re.sub(r"^samples_|_\d{4}-\d.*$|\.jsonl$", "", os.path.basename(f))
         try:
             for line in open(f):
@@ -230,6 +259,12 @@ def main():
     if integ.get("detail", {}).get("missing") or integ.get("detail", {}).get("stale"):
         md += ["> missing: " + ", ".join(integ["detail"].get("missing", []) or ["—"]),
                "> stale: " + ", ".join(integ["detail"].get("stale", []) or ["—"]), ""]
+
+    # ---- stale artifacts ignored, stated in words ---------------------------
+    if _SKIPPED_STALE:
+        md += [f"> **{len(_SKIPPED_STALE)} artifact(s) older than this run were IGNORED** "
+               f"(earlier smoke/aborted attempts in the same results dir; freshness cutoff "
+               f"= manifest `created`). Nothing below is computed from them.", ""]
 
     # ---- NOT RUN, stated in words -------------------------------------------
     # Absence of a row must never read as "measured, no difference".

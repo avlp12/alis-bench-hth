@@ -6,3 +6,4 @@ cases/*/results/
 .DS_Store
 .testmodel/
 .venv-lmeval/
+cases/*/_stale_prerun/
