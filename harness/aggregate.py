@@ -403,6 +403,27 @@ def main():
                 md.append(f"- runtime {who}: `{rt.get('commit') or '?'}` ({dirty}, {rt.get('dirty_files', 0)} modified)")
     else:
         md.append("- ⚠ no manifest — peak settings and runtime provenance were NOT captured.")
+
+    # ---- where each contender actually ran ----------------------------------
+    # An efficiency number means nothing without the box that produced it, and
+    # "different hardware" is a label, not a fact — when these two were actually
+    # checked they turned out to be the same machine model. State the boxes.
+    hp = R / "hosts.json"
+    if hp.exists():
+        try:
+            hj = json.loads(hp.read_text())
+            def _h(k):
+                d = hj.get(k, {})
+                return (f"`{d.get('machine')}` · {d.get('cores')} cores · {d.get('ram_gb')} GB · "
+                        f"macOS {d.get('os')} · host `{d.get('hostname')}` (via {d.get('reached_over')})")
+            md += ["", "**Serving hosts**", "",
+                   f"- motif: {_h('motif')}", f"- solar: {_h('solar')}",
+                   "", f"> {hj.get('comparability')}"]
+        except Exception:
+            md.append("- ⚠ hosts.json unreadable — serving hardware NOT disclosed.")
+    else:
+        md.append("- ⚠ serving hosts NOT recorded (run `harness/host_probe.sh`) — "
+                  "any throughput number below is unattributable.")
     if jp.exists():
         dc = json.load(open(jp)).get("summary", {}).get("disclosed_cost", {})
         if dc:
