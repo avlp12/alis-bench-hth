@@ -1,0 +1,59 @@
+[R3 reference] Motif Q8 (epsilon) vs Solar T (gesicht) -> /Users/gesicht/alis-bench-hth/cases/2026-07-motif3-vs-solar2/results/reference
+[R3 reference] Motif Q8 (epsilon) vs Solar T (gesicht) -> /Users/gesicht/alis-bench-hth/cases/2026-07-motif3-vs-solar2/results/reference
+Served on two SEPARATE but IDENTICALLY SPECIFIED boxes. Throughput is comparable to within: (a) the network hop on the LAN-reached side, which loopback does not pay; (b) whatever else each box was doing — the lm-eval driver itself runs co-resident with the loopback-served model. This is NOT a same-box back-to-back measurement, and no efficiency claim here is a controlled one.
+== run_id=a807ad1a1423  suite_mode=full  -> /Users/gesicht/alis-bench-hth/cases/2026-07-motif3-vs-solar2/results/reference ==
+== 0. sanity / fairness pre-flight ==
+[probe] motif  http://10.0.0.2:8081  model=/Users/m3ms/motif3/models/Motif-3-Q8
+[probe] arithmetic -> content='1+1은 2입니다.' reasoning_len=0
+[probe] KO-consistency hangul_ratio=0.93  sample='한국의 급격한 고령화로 인해 국민연금 수급자는 빠르게 증가하는 반면, 보험료를 납부하는 생산가능인구는 감소하여 연금 재정에 심각한 압박이 가해지'
+[probe] thinking: reasoning_chars=371 answer_chars=249 -> reasons internally
+[probe] usage={'prompt_tokens': 20, 'completion_tokens': 200, 'total_tokens': 220, 'prompt_tokens_details': {'cached_tokens': 19}}
+[probe] OK — endpoint fair to benchmark
+[probe] solar  http://127.0.0.1:8082  model=/Users/gesicht/Documents/kimi/workspace/builds/T-q8
+[probe] arithmetic -> content='Thinking Process:\n\n1.  **Analyze the Request:**\n    *   Ques' reasoning_len=0
+[probe] KO-consistency hangul_ratio=0.48  sample='Thinking Process:\n\n1.  **Analyze the Request:**\n    *   Topic: Impact of South K'
+[probe] thinking: reasoning_chars=0 answer_chars=3703 -> reasons in the visible answer
+[probe] usage={'prompt_tokens': 23, 'completion_tokens': 1024, 'total_tokens': 1047, 'prompt_tokens_details': {'cached_tokens': 22}}
+[probe] OK — endpoint fair to benchmark
+== 1. lm-eval (both parallel) ==
+[R3 reference] Motif Q8 (epsilon) vs Solar T (gesicht) -> /Users/gesicht/alis-bench-hth/cases/2026-07-motif3-vs-solar2/results/reference
+[R3 reference] Motif Q8 (epsilon) vs Solar T (gesicht) -> /Users/gesicht/alis-bench-hth/cases/2026-07-motif3-vs-solar2/results/reference
+[lm_eval] motif tasks=gpqa_diamond_cot_zeroshot,aime25,mmlu_pro,minerva_math500,ifeval temp=1.0 top_p=0.95 max_gen_toks=32768 (peak) -> /Users/gesicht/alis-bench-hth/cases/2026-07-motif3-vs-solar2/results/reference/lm_eval/motif
+[lm_eval] solar tasks=gpqa_diamond_cot_zeroshot,aime25,mmlu_pro,minerva_math500,ifeval temp=1.0 top_p=1.0 max_gen_toks=32768 (peak) -> /Users/gesicht/alis-bench-hth/cases/2026-07-motif3-vs-solar2/results/reference/lm_eval/solar
+[lm_eval] motif task=gpqa_diamond_cot_zeroshot plan=samples instr=End your reply with a final line of the form: The answer is <answer>.
+[lm_eval] solar task=gpqa_diamond_cot_zeroshot plan=samples instr=End your reply with a final line of the form: The answer is <answer>.
+2026-07-27:15:49:46 INFO     [config.evaluate_config:307] Using default fewshot_as_multiturn=True.
+2026-07-27:15:49:46 INFO     [config.evaluate_config:307] Using default fewshot_as_multiturn=True.
+2026-07-27:15:49:51 INFO     [_cli.run:388] Selected Tasks: ['gpqa_diamond_cot_zeroshot']
+2026-07-27:15:49:51 INFO     [_cli.run:388] Selected Tasks: ['gpqa_diamond_cot_zeroshot']
+2026-07-27:15:49:52 INFO     [evaluator:214] Setting random seed to 1234 | Setting numpy seed to 1234 | Setting torch manual seed to 1234 | Setting fewshot manual seed to 1234
+2026-07-27:15:49:52 INFO     [evaluator:214] Setting random seed to 1234 | Setting numpy seed to 1234 | Setting torch manual seed to 1234 | Setting fewshot manual seed to 1234
+2026-07-27:15:49:52 WARNING  [evaluator:226] generation_kwargs: {'temperature': 1.0, 'top_p': 0.95, 'max_gen_toks': 32768} specified through cli, these settings will update set parameters in yaml tasks. Ensure 'do_sample=True' for non-greedy decoding!
+2026-07-27:15:49:52 WARNING  [evaluator:226] generation_kwargs: {'temperature': 1.0, 'top_p': 1.0, 'max_gen_toks': 32768} specified through cli, these settings will update set parameters in yaml tasks. Ensure 'do_sample=True' for non-greedy decoding!
+2026-07-27:15:49:52 INFO     [evaluator:239] Initializing local-chat-completions model, with arguments: {'model': '/Users/m3ms/motif3/models/Motif-3-Q8', 'base_url': 'http://10.0.0.2:8081/v1/chat/completions', 'num_concurrent': 8, 'max_retries': 3, 'tokenized_requests': False, 'timeout': 14400, 'seed': 1234}
+2026-07-27:15:49:52 INFO     [evaluator:239] Initializing local-chat-completions model, with arguments: {'model': '/Users/gesicht/Documents/kimi/workspace/builds/T-q8', 'base_url': 'http://127.0.0.1:8082/v1/chat/completions', 'num_concurrent': 8, 'max_retries': 3, 'tokenized_requests': False, 'timeout': 14400, 'seed': 1234}
+2026-07-27:15:49:52 INFO     [models.api_models:179] Using max length 2048 - 1
+2026-07-27:15:49:52 INFO     [models.api_models:179] Using max length 2048 - 1
+2026-07-27:15:49:52 INFO     [models.api_models:200] Using tokenizer None
+2026-07-27:15:49:52 INFO     [models.api_models:200] Using tokenizer None
+2026-07-27:15:49:54 INFO     [evaluator_utils:446] Selected tasks:
+2026-07-27:15:49:54 INFO     [evaluator_utils:480] Task: gpqa_diamond_cot_zeroshot (gpqa/cot_zeroshot/gpqa_diamond_cot_zeroshot.yaml)
+2026-07-27:15:49:54 INFO     [evaluator:314] gpqa_diamond_cot_zeroshot: Using gen_kwargs: {'until': ['</s>'], 'do_sample': False, 'temperature': 1.0, 'top_p': 0.95, 'max_gen_toks': 32768}
+2026-07-27:15:49:54 INFO     [evaluator:329] num_fewshot has been set to 0 for gpqa_diamond_cot_zeroshot in its config. Manual configuration will be ignored.
+2026-07-27:15:49:54 INFO     [evaluator:483] Evaluating examples for tasks ['gpqa_diamond_cot_zeroshot']
+2026-07-27:15:49:54 INFO     [api.task:312] Building contexts for gpqa_diamond_cot_zeroshot on rank 0...
+2026-07-27:15:49:54 INFO     [api.task:589] gpqa_diamond_cot_zeroshot: Evaluating on 99 examples
+  0%|          | 0/99 [00:00<?, ?it/s]2026-07-27:15:49:54 INFO     [evaluator_utils:446] Selected tasks:
+2026-07-27:15:49:54 INFO     [evaluator_utils:480] Task: gpqa_diamond_cot_zeroshot (gpqa/cot_zeroshot/gpqa_diamond_cot_zeroshot.yaml)
+2026-07-27:15:49:54 INFO     [evaluator:314] gpqa_diamond_cot_zeroshot: Using gen_kwargs: {'until': ['</s>'], 'do_sample': False, 'temperature': 1.0, 'top_p': 1.0, 'max_gen_toks': 32768}
+2026-07-27:15:49:54 INFO     [evaluator:329] num_fewshot has been set to 0 for gpqa_diamond_cot_zeroshot in its config. Manual configuration will be ignored.
+2026-07-27:15:49:54 INFO     [evaluator:483] Evaluating examples for tasks ['gpqa_diamond_cot_zeroshot']
+2026-07-27:15:49:54 INFO     [api.task:312] Building contexts for gpqa_diamond_cot_zeroshot on rank 0...
+2026-07-27:15:49:54 INFO     [api.task:589] gpqa_diamond_cot_zeroshot: Evaluating on 99 examples
+100%|██████████| 99/99 [00:00<00:00, 3434.74it/s]
+2026-07-27:15:49:54 INFO     [evaluator:585] Running generate_until requests
+2026-07-27:15:49:54 INFO     [models.api_models:747] Tokenized requests are disabled. Context + generation length is not checked.
+Requesting API:   0%|          | 0/99 [00:00<?, ?it/s]  0%|          | 0/99 [00:00<?, ?it/s]100%|██████████| 99/99 [00:00<00:00, 3494.99it/s]
+2026-07-27:15:49:55 INFO     [evaluator:585] Running generate_until requests
+2026-07-27:15:49:55 INFO     [models.api_models:747] Tokenized requests are disabled. Context + generation length is not checked.
+Requesting API:   0%|          | 0/99 [00:00<?, ?it/s]

@@ -23,7 +23,7 @@ stage gate passes with two new checks that reproduce them (§6). R3 may start.
 | Motif-3-Beta 8-bit (rebuilt) | epsilon `/Users/m3ms/motif3/models/Motif-3-Q8`, served `10.0.0.2:8081` | ✅ loaded, verified |
 | Solar Open 2 "T" (Q8) | gesicht `~/Documents/kimi/workspace/builds/T-q8`, served `127.0.0.1:8082` | ✅ loaded |
 | R3 config | `cases/2026-07-motif3-vs-solar2/round3-reference.env` (copied to `harness/config.env`) | ✅ frozen |
-| Preregistration | `cases/2026-07-motif3-vs-solar2/PREREGISTRATION.md` + `.sha256` = `6f7c7af7ebee34d5…` | ✅ frozen |
+| Preregistration | `cases/2026-07-motif3-vs-solar2/PREREGISTRATION.md` + `.sha256` = `4458d746ae35f94c…` | ✅ frozen |
 | Stage gate | `harness/stage_gate.py` | ✅ PASS (5 layers) |
 
 **epsilon is reachable only as `10.0.0.2` over the Thunderbolt bridge.** Its hostname
@@ -31,6 +31,34 @@ is misspelled `episilon` in DNS; `epsilon.local` does not resolve. SSH: `ssh 10.
 
 Servers are large (334 GB + 266 GB). They cannot co-reside on one box — one model per
 machine. Do not start a second big model on either host without stopping the first.
+
+## 2b. Suite v2 + attempt-2 state (2026-07-27 15:49)
+
+**R3 attempt 2 RUNNING**, run_id `a807ad1a1423`, suite v2 (prereg re-frozen `4458d746…`):
+gpqa 99 sampled / aime25 30 full (boxed instruction) / mmlu_pro 84 / minerva_math500 100 /
+ifeval 120 — 433 items/leg, seed 20260727, samples sha `12753560…`, c=8, lm-eval timeout
+14400. Attempt 1 (~770 items, c=4) measured ~10.5 min/item ⇒ aborted unscored, archived in
+`_aborted_attempt1/`. Token-cost probe evidence in `measurements/`: runaway tail at temp 1.0
+caps ~25-35 % of items at 32k on BOTH models; realized aggregate c=8 Motif 30.4 / Solar
+≥43.6 tok/s. Est 1-2 days/leg.
+
+New gotchas (do not rediscover):
+- **mlx_lm.server never cancels a generation** — kill the client and the request keeps
+  computing. Drain (a trivial request returning fast) before trusting any measurement.
+- **Solar T server HUNG once** (0 % CPU, requests time out) — GPU-hang class, matches
+  Kimi's campaign history. Fix: kill + `serve.sh solar` (weights reload from page cache
+  in ~15 s).
+- **serve.sh must pin Solar's `--chat-template-args '{"reasoning_effort":"high"}'`** (it
+  does now). Thinking-in-content is Solar's NORMAL serving shape here (baseline-verified,
+  disclosed in prereg v2) — do not "fix" it mid-series.
+- lm-eval timeout must exceed 32,768 tok at the per-stream floor (~8,600 s) or every
+  runaway item times out and 3×-retries.
+
+**After the Solar leg + thru.solar complete:** stop the solar server and DELETE
+`~/Documents/kimi/workspace/builds/T-q8` (248 GB). Verified byte-complete on HF:
+`avlp12/Solar-Open2-250B-Alis-MLX-Dynamic` branch `t384`, 62 shards, index OK. (User
+instruction 2026-07-27: "T-q8 벤치 마저 돌리고 이후엔 삭제".) Note: Kimi's F-v2-dwq-t
+trainer used T-q8 as teacher — if that campaign resumes, re-download from t384.
 
 ## 3. What must happen next, in order
 
