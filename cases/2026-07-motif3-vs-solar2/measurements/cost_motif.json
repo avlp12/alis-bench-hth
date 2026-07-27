@@ -1,0 +1,157 @@
+{
+  "name": "motif",
+  "budget": 32768,
+  "concurrency": 8,
+  "seed": 1234,
+  "wall_min": 115.5,
+  "aggregate_tok_s": 30.4,
+  "per_task": {
+    "gpqa_diamond_cot_zeroshot": {
+      "n": 3,
+      "mean_tokens": 23435,
+      "median_tokens": 32768,
+      "max_tokens_seen": 32768,
+      "empty": 2,
+      "mean_secs": 4813.0
+    },
+    "aime25": {
+      "n": 3,
+      "mean_tokens": 22165,
+      "median_tokens": 32768,
+      "max_tokens_seen": 32768,
+      "empty": 2,
+      "mean_secs": 4546.8
+    },
+    "minerva_math500": {
+      "n": 3,
+      "mean_tokens": 1941,
+      "median_tokens": 920,
+      "max_tokens_seen": 4566,
+      "empty": 0,
+      "mean_secs": 404.4
+    },
+    "ifeval": {
+      "n": 3,
+      "mean_tokens": 10967,
+      "median_tokens": 74,
+      "max_tokens_seen": 32768,
+      "empty": 1,
+      "mean_secs": 2275.4
+    },
+    "mmlu_pro": {
+      "n": 3,
+      "mean_tokens": 11727,
+      "median_tokens": 1417,
+      "max_tokens_seen": 32768,
+      "empty": 1,
+      "mean_secs": 2428.4
+    }
+  },
+  "rows": [
+    {
+      "task": "ifeval",
+      "leaf": "ifeval",
+      "secs": 20.0,
+      "completion_tokens": 58,
+      "empty": false
+    },
+    {
+      "task": "ifeval",
+      "leaf": "ifeval",
+      "secs": 6782.5,
+      "completion_tokens": 32768,
+      "empty": true
+    },
+    {
+      "task": "mmlu_pro",
+      "leaf": "mmlu_pro_economics",
+      "secs": 211.0,
+      "completion_tokens": 997,
+      "empty": false
+    },
+    {
+      "task": "minerva_math500",
+      "leaf": "minerva_math500",
+      "secs": 947.0,
+      "completion_tokens": 4566,
+      "empty": false
+    },
+    {
+      "task": "ifeval",
+      "leaf": "ifeval",
+      "secs": 23.8,
+      "completion_tokens": 74,
+      "empty": false
+    },
+    {
+      "task": "aime25",
+      "leaf": "aime25",
+      "secs": 202.8,
+      "completion_tokens": 960,
+      "empty": false
+    },
+    {
+      "task": "mmlu_pro",
+      "leaf": "mmlu_pro_computer_science",
+      "secs": 6782.5,
+      "completion_tokens": 32768,
+      "empty": true
+    },
+    {
+      "task": "minerva_math500",
+      "leaf": "minerva_math500",
+      "secs": 77.1,
+      "completion_tokens": 338,
+      "empty": false
+    },
+    {
+      "task": "aime25",
+      "leaf": "aime25",
+      "secs": 6773.2,
+      "completion_tokens": 32768,
+      "empty": true
+    },
+    {
+      "task": "gpqa_diamond_cot_zeroshot",
+      "leaf": "gpqa_diamond_cot_zeroshot",
+      "secs": 6772.0,
+      "completion_tokens": 32768,
+      "empty": true
+    },
+    {
+      "task": "minerva_math500",
+      "leaf": "minerva_math500",
+      "secs": 189.1,
+      "completion_tokens": 920,
+      "empty": false
+    },
+    {
+      "task": "gpqa_diamond_cot_zeroshot",
+      "leaf": "gpqa_diamond_cot_zeroshot",
+      "secs": 6700.2,
+      "completion_tokens": 32768,
+      "empty": true
+    },
+    {
+      "task": "mmlu_pro",
+      "leaf": "mmlu_pro_philosophy",
+      "secs": 291.7,
+      "completion_tokens": 1417,
+      "empty": false
+    },
+    {
+      "task": "aime25",
+      "leaf": "aime25",
+      "secs": 6664.4,
+      "completion_tokens": 32768,
+      "empty": true
+    },
+    {
+      "task": "gpqa_diamond_cot_zeroshot",
+      "leaf": "gpqa_diamond_cot_zeroshot",
+      "secs": 966.8,
+      "completion_tokens": 4769,
+      "empty": false
+    }
+  ]
+}

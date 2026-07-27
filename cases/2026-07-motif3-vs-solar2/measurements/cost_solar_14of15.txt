@@ -1,0 +1,14 @@
+  ifeval                         1179 tok    3.2 min  ok
+  mmlu_pro                       2897 tok    7.8 min  ok
+  ifeval                         3913 tok   10.5 min  ok
+  minerva_math500                1299 tok    3.5 min  ok
+  aime25                         6734 tok   18.1 min  ok
+  mmlu_pro                       8870 tok   23.4 min  ok
+  mmlu_pro                       6148 tok   15.5 min  ok
+  gpqa_diamond_cot_zeroshot      5354 tok   13.8 min  ok
+  gpqa_diamond_cot_zeroshot     16945 tok   43.6 min  ok
+  minerva_math500               32768 tok   81.5 min  ok
+  minerva_math500               32768 tok   81.5 min  ok
+  ifeval                        32768 tok   81.5 min  ok
+  aime25                        32768 tok   79.9 min  ok
+  gpqa_diamond_cot_zeroshot     32768 tok   73.7 min  ok

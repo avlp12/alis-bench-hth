@@ -25,7 +25,9 @@ GEN_TOKS="$MAX_TOKENS"
 # frozen sample, never a head-of-dataset --limit slice. Published-benchmark
 # practice (Artificial Analysis, HELM) runs small sets whole and never slices
 # thin; that is what makes our gpqa/aime numbers directly comparable.
-#   gpqa_diamond_cot_zeroshot -> hard science, run COMPLETE (198), AA-comparable
+#   gpqa_diamond_cot_zeroshot -> hard science, seeded sample (99 of 198: the full
+#                                set measured ~4.6M tok/leg ≈ 42 h — reported as a
+#                                sampled estimate, NOT as an AA-comparable number)
 #   aime25                    -> competition math, COMPLETE (30), boxed-answer scoring
 #   mmlu_pro                  -> broad knowledge, seeded sample (nothing small covers it)
 #   minerva_math500           -> general math, seeded sample of the curated 500
@@ -134,7 +136,10 @@ FEWSHOT="${FEWSHOT:-0}"
 # would have scored obedience to our own instruction as failure.
 FORMAT_INSTRUCTION="${FORMAT_INSTRUCTION:-End your reply with a final line of the form: The answer is <answer>.}"
 
-MODEL_ARGS="model=${MODEL},base_url=${URL}/v1/chat/completions,num_concurrent=${NUM_CONCURRENT:-4},max_retries=3,tokenized_requests=False,timeout=7200,seed=${SEED}"
+# timeout must exceed the WORST item: 32,768 tokens at the measured c=8
+# per-stream floor (~3.8 tok/s, Motif) is ~8,600s. 7200 would time out every
+# runaway item and retry it 3x — tripling exactly the most expensive items.
+MODEL_ARGS="model=${MODEL},base_url=${URL}/v1/chat/completions,num_concurrent=${NUM_CONCURRENT:-4},max_retries=3,tokenized_requests=False,timeout=${LMEVAL_TIMEOUT:-14400},seed=${SEED}"
 PLAN=""   # "task=plan;..." — recorded so the manifest states the realized plan
 
 for T in ${TASKS//,/ }; do
