@@ -1,0 +1,46 @@
+{
+  "name": "motif",
+  "url": "http://10.0.0.2:8081",
+  "max_tokens": 2048,
+  "levels": [
+    {
+      "concurrency": 4,
+      "wall_s": 341.4,
+      "completed": 4,
+      "failed": 0,
+      "total_tokens": 6392,
+      "aggregate_tok_s": 18.72,
+      "per_stream_tok_s": 5.97,
+      "mean_request_s": 267.9,
+      "empty_content": 3,
+      "errors": []
+    },
+    {
+      "concurrency": 8,
+      "wall_s": 289.8,
+      "completed": 8,
+      "failed": 0,
+      "total_tokens": 9894,
+      "aggregate_tok_s": 34.14,
+      "per_stream_tok_s": 6.67,
+      "mean_request_s": 185.4,
+      "empty_content": 4,
+      "errors": []
+    },
+    {
+      "concurrency": 16,
+      "wall_s": 459.3,
+      "completed": 16,
+      "failed": 0,
+      "total_tokens": 19411,
+      "aggregate_tok_s": 42.26,
+      "per_stream_tok_s": 4.16,
+      "mean_request_s": 291.6,
+      "empty_content": 7,
+      "errors": []
+    }
+  ],
+  "best_concurrency": 16,
+  "speedup_vs_first": 2.26,
+  "note": "aggregate tok/s sets benchmark wall clock; per-stream tok/s is latency"
+}

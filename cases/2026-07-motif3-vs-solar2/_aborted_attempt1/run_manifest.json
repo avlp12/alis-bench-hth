@@ -1,0 +1,83 @@
+{
+  "run_id": "3cede9a8ee0c",
+  "created": "2026-07-27T09:24:30",
+  "suite_mode": "full",
+  "models": {
+    "motif": "/Users/m3ms/motif3/models/Motif-3-Q8",
+    "solar": "/Users/gesicht/Documents/kimi/workspace/builds/T-q8"
+  },
+  "endpoints": {
+    "motif": "http://10.0.0.2:8081",
+    "solar": "http://127.0.0.1:8082"
+  },
+  "config_sha": "e407d42e54acf049",
+  "code_sha": "5d14e26e45e724e3",
+  "disclosure": {
+    "thinking": "on",
+    "max_tokens": "32768",
+    "seed": "1234",
+    "sampling": {
+      "motif": {
+        "temp": "1.0",
+        "top_p": "0.95"
+      },
+      "solar": {
+        "temp": "1.0",
+        "top_p": "1.0"
+      }
+    },
+    "builds": {
+      "motif": "/Users/m3ms/motif3/models/Motif-3-Q8",
+      "solar": "/Users/gesicht/Documents/kimi/workspace/builds/T-q8",
+      "motif_ref": "",
+      "solar_ref": ""
+    },
+    "runtime": {
+      "motif_fork": {
+        "path": "/Users/gesicht/glm5.2/mlx-lm",
+        "commit": "2a07e51f21ecabfc19c8ca0d530b24787206dc2e",
+        "dirty": false,
+        "dirty_files": 0,
+        "untracked_files": 0
+      },
+      "solar_fork": {
+        "path": "/Users/gesicht/Documents/kimi/workspace/mlx-lm",
+        "commit": "7937fda878b2d9b16961300dfa2904048b8d4804",
+        "dirty": false,
+        "dirty_files": 0,
+        "untracked_files": 1
+      }
+    },
+    "hret_penalize": "off",
+    "protocol": {
+      "equiv_margin": "0.015",
+      "bootstrap_n": "2000",
+      "min_paired_n": "30",
+      "fewshot": "0",
+      "limit": "per_task",
+      "limit_per_task": {
+        "mmlu_pro": "11",
+        "bbh_cot_zeroshot": "6",
+        "gsm8k_cot_zeroshot": "150",
+        "minerva_math": "22",
+        "ifeval": "150"
+      },
+      "tasks": "<default>",
+      "format_instruction": "",
+      "num_concurrent": "4"
+    }
+  },
+  "required": [
+    "lm_eval.motif",
+    "lm_eval.solar",
+    "thru.motif",
+    "thru.solar"
+  ],
+  "not_run": {
+    "hret": "Korean leg NOT RUN this round — measured in a lighter tier (10-15 min/item here)",
+    "judge": "no neutral judges configured — open-generation NOT RUN",
+    "kl.motif": "no 8-bit anchor for this tier — KL not applicable",
+    "kl.solar": "no 8-bit anchor for this tier — KL not applicable"
+  },
+  "status": {}
+}

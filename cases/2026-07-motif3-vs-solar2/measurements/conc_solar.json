@@ -1,0 +1,46 @@
+{
+  "name": "solar",
+  "url": "http://127.0.0.1:8082",
+  "max_tokens": 2048,
+  "levels": [
+    {
+      "concurrency": 4,
+      "wall_s": 155.4,
+      "completed": 4,
+      "failed": 0,
+      "total_tokens": 5654,
+      "aggregate_tok_s": 36.38,
+      "per_stream_tok_s": 12.58,
+      "mean_request_s": 112.3,
+      "empty_content": 0,
+      "errors": []
+    },
+    {
+      "concurrency": 8,
+      "wall_s": 213.9,
+      "completed": 8,
+      "failed": 0,
+      "total_tokens": 9471,
+      "aggregate_tok_s": 44.28,
+      "per_stream_tok_s": 8.57,
+      "mean_request_s": 138.1,
+      "empty_content": 0,
+      "errors": []
+    },
+    {
+      "concurrency": 16,
+      "wall_s": 385.2,
+      "completed": 16,
+      "failed": 0,
+      "total_tokens": 20394,
+      "aggregate_tok_s": 52.95,
+      "per_stream_tok_s": 4.71,
+      "mean_request_s": 270.5,
+      "empty_content": 0,
+      "errors": []
+    }
+  ],
+  "best_concurrency": 16,
+  "speedup_vs_first": 1.46,
+  "note": "aggregate tok/s sets benchmark wall clock; per-stream tok/s is latency"
+}
