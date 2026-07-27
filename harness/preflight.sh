@@ -53,7 +53,14 @@ done
 
 echo "== 4. judges =="
 n_j=$(python3 -c "import json,os;print(len(json.loads(os.environ.get('JUDGE_ENDPOINTS') or '[]')))" 2>/dev/null || echo 0)
-[ "$n_j" -ge 2 ] && ok "$n_j neutral judges configured" || bad "need >=2 judges in JUDGE_ENDPOINTS (a 1-judge run is not publishable)"
+# JUDGE_ENDPOINTS="" is a legitimate PREREGISTERED choice (R3 scores mechanically
+# and records open-generation as NOT RUN). Hard-failing it makes the gate always
+# fail for that round and trains the operator to bypass preflight — which costs
+# more than it protects. Zero judges: warn. ONE judge stays a hard fail, because a
+# 1-judge verdict does get published and is not defensible.
+if   [ "$n_j" -ge 2 ]; then ok "$n_j neutral judges configured"
+elif [ "$n_j" -eq 0 ]; then warn "no judges configured — open-generation must be recorded NOT RUN (manifest.not_run)"
+else bad "1 judge configured: need >=2 in JUDGE_ENDPOINTS, or 0 with open-gen preregistered NOT RUN"; fi
 python3 - <<'PY' 2>/dev/null || warn "could not verify judge API keys"
 import json,os
 for e in json.loads(os.environ.get("JUDGE_ENDPOINTS") or "[]"):

@@ -146,6 +146,12 @@ def bootstrap_sign(scores, margin, n=2000, seed=1234):
     rng = np.random.default_rng(seed)
     means = a[rng.integers(0, a.size, size=(n, a.size))].mean(axis=1)
     lo, hi = float(np.percentile(means, 2.5)), float(np.percentile(means, 97.5))
+    # Same preregistered power floor as aggregate.verdict(): a handful of prompts
+    # can put the CI clear of the margin by luck, and aggregate.py quotes this
+    # verdict verbatim into the report. Gate the DIRECTION, not the estimate.
+    min_n = int(os.environ.get("MIN_PAIRED_N", "30"))
+    if a.size < min_n:
+        return float(a.mean()), lo, hi, f"underpowered(n={a.size})"
     vd = "motif" if lo > margin else "solar" if hi < -margin else "INCONCLUSIVE"
     return float(a.mean()), lo, hi, vd
 

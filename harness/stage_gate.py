@@ -165,8 +165,11 @@ def s5_aggregate():
     json.dump({"summary": {"n": 40, "motif_wins": 27, "solar_wins": 13, "semantic_ties": 0,
                            "judges": ["a", "b"], "verdict": "motif"}, "rows": rows},
               open(j / "pairwise.json", "w"))
+    # KO_SUITE=on explicitly: the round config may set it to "off", and aggregate
+    # now (correctly) ignores the whole hret/ tree in that case — which would make
+    # the Korean assertions below silently vacuous.
     envv = dict(os.environ, RESULTS_DIR=str(d), BPW_TIER="gate", ALLOW_PARTIAL="1",
-                JUDGE_ENDPOINTS="", MOTIF_REF="", SOLAR_REF="")
+                JUDGE_ENDPOINTS="", MOTIF_REF="", SOLAR_REF="", KO_SUITE="on")
     subprocess.run([sys.executable, str(HERE / "manifest.py"), "init"], env=envv,
                    capture_output=True, text=True)
     r = subprocess.run([sys.executable, str(HERE / "aggregate.py")], env=envv,
@@ -174,13 +177,105 @@ def s5_aggregate():
     txt = r.stdout
     if r.returncode != 0: bad(f"aggregate crashed: {r.stderr.strip().splitlines()[-1][:140]}")
     else:
+        # The Korean check must key on the PAIRED table specifically: it has 7
+        # columns, the marginal HRET table has 4, and BOTH carry "hret:kmmlu" —
+        # the old substring test was satisfied by the marginal row alone and so
+        # could not fail the thing it named.
+        ko_paired = any(l.count("|") >= 7 and "hret:kmmlu" in l for l in txt.splitlines())
         checks = {"paired verdict emitted": "mmlu_pro" in txt and ("motif" in txt or "INCONCLUSIVE" in txt),
                   "HRET metrics parsed (not '—')": "hret:kmmlu" in txt and "0.6" in txt.replace("0.60", "0.6"),
                   "plumbing-failure section present": "Plumbing failures" in txt,
-                  "KOREAN paired row produced": "hret:kmmlu" in txt and "n=" in txt,
+                  "KOREAN paired row produced (7-col paired table)": ko_paired,
                   "disclosed-cost section present": "Disclosed cost" in txt}
         for k, v in checks.items(): ok(k) if v else bad(f"aggregate: {k} FAILED")
     import shutil; shutil.rmtree(d, ignore_errors=True)
+
+def s6_schema_and_limits():
+    """The two checks that would have caught round 4's CRITICAL findings.
+
+    Both failures were of the same shape: a value written in a config file that
+    no code path reads, or a key that no installed task emits. Neither is visible
+    by reading the harness — only by asking the installed package and the actual
+    script what they resolve to.
+    """
+    stage(6, "metric schema vs installed tasks, and the sampling plan as run")
+
+    # --- (a) every METRIC_SCHEMA task must have >=1 key the installed lm-eval emits
+    lm = HERE.parent / ".venv-lmeval/bin/python"
+    schema = subprocess.run(
+        [sys.executable, "-c",
+         "import sys,json;sys.path.insert(0,sys.argv[1]);"
+         "from aggregate import METRIC_SCHEMA;print(json.dumps(METRIC_SCHEMA))", str(HERE)],
+        capture_output=True, text=True).stdout.strip()
+    code = r'''
+import json, sys
+from lm_eval.tasks import TaskManager
+SCHEMA = json.loads(sys.argv[1])
+tm = TaskManager(); out = {}
+def cfg_of(o):
+    c = getattr(o, "config", None)
+    if hasattr(c, "to_dict"): return c.to_dict()
+    return c if isinstance(c, dict) else {}
+def harvest(c, avail):
+    filts = [f.get("name") for f in (c.get("filter_list") or []) if isinstance(f, dict)] or ["none"]
+    for m in (c.get("metric_list") or []):
+        if isinstance(m, dict) and m.get("metric"):
+            for fl in filts: avail.add(f"{m['metric']},{fl}")
+    for a in (c.get("aggregate_metric_list") or []):
+        if isinstance(a, dict) and a.get("metric"):
+            fl = a.get("filter_list") or ["none"]
+            for f in ([fl] if isinstance(fl, str) else fl): avail.add(f"{a['metric']},{f}")
+def walk(o, avail, depth=0):
+    if depth > 4: return
+    harvest(cfg_of(o), avail)
+    if isinstance(o, dict):
+        for k, v in o.items(): walk(k, avail, depth+1); walk(v, avail, depth+1)
+for task, wanted in SCHEMA.items():
+    try:
+        d = tm.load([task]) if hasattr(tm, "load") else tm.load_task_or_group([task])
+    except Exception as e:
+        out[task] = {"error": f"{type(e).__name__}: {e}"[:120]}; continue
+    avail = set(); walk(d, avail)
+    # preserve SCHEMA order — that is the order primary() tries, so the first
+    # match is the key the verdict would actually be computed from
+    out[task] = {"matched": [k for k in wanted if k in avail], "wanted": wanted,
+                 "available_sample": sorted(avail)[:8]}
+print(json.dumps(out))
+'''
+    r = subprocess.run([str(lm), "-c", code, schema], capture_output=True, text=True)
+    try:
+        res = json.loads(r.stdout.strip().splitlines()[-1])
+    except Exception:
+        bad(f"could not introspect installed tasks: {(r.stderr or r.stdout).strip()[-200:]}"); res = {}
+    for task, v in res.items():
+        if v.get("error"):        bad(f"{task}: cannot load ({v['error']})")
+        elif not v.get("matched"): bad(f"{task}: METRIC_SCHEMA {v['wanted']} matches NOTHING the "
+                                       f"installed task emits (has e.g. {v.get('available_sample')}) "
+                                       f"— this task would be dropped from the verdict family while "
+                                       f"the round still reported COMPLETE")
+        else:                      ok(f"{task}: schema key {v['matched'][0]} exists")
+
+    # --- (b) the sampling plan, resolved through run_lm_eval.sh's own code path
+    import tempfile
+    with tempfile.TemporaryDirectory() as td:
+        env = dict(os.environ, PLAN_ONLY="1", RESULTS_DIR=td)
+        env.pop("LIMIT", None)                       # smoke override must not mask the plan
+        p = subprocess.run(["bash", str(HERE / "run_lm_eval.sh"), "motif"],
+                           env=env, capture_output=True, text=True)
+    if p.returncode != 0:
+        bad(f"sampling plan does not resolve: {(p.stderr or p.stdout).strip().splitlines()[-1][:160]}")
+        return
+    plan = dict(l[len("PLAN "):].split("=", 1) for l in p.stdout.splitlines() if l.startswith("PLAN "))
+    total = 0
+    # group tasks: --limit is PER LEAF TASK, so realized n = limit x n_subtasks
+    SUBTASKS = {"mmlu_pro": 14, "bbh_cot_zeroshot": 27, "gsm8k_cot_zeroshot": 1,
+                "minerva_math": 7, "ifeval": 1}
+    for t, n in plan.items():
+        if not n: bad(f"{t}: NO --limit would be passed (full dataset ~thousands of items)"); continue
+        total += int(n) * SUBTASKS.get(t, 1)
+        ok(f"{t}: --limit {n}  (x{SUBTASKS.get(t,1)} subtasks)")
+    if plan and all(plan.values()):
+        ok(f"realized sample ≈ {total} items/model")
 
 # ---------------------------------------------------------------- main
 if __name__ == "__main__":
@@ -192,7 +287,7 @@ if __name__ == "__main__":
         s3_endpoints(); s4_hret_backend()
     else:
         warn("stages 3-4 skipped (--skip-gen): no model calls made")
-    s5_aggregate()
+    s5_aggregate(); s6_schema_and_limits()
     print()
     if FAIL: print(f"\033[31mSTAGE GATE FAIL: {FAIL} blocking issue(s)\033[0m — fix all, then re-run this gate."); sys.exit(1)
     print("\033[32mSTAGE GATE PASS\033[0m — every layer verified; the scored run may start.")

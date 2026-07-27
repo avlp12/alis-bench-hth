@@ -114,12 +114,24 @@ def main():
         #   consistency is reported as a SEPARATE pass (HRET_PENALIZE=both).
         pen_mode = os.environ.get("HRET_PENALIZE", "off").lower()
         passes = {"off": [False], "on": [True], "both": [False, True]}[pen_mode]
-        # Preregistered sample: 300 items per dataset, stratified across subsets.
-        # The full Korean suite is ~51k items; at measured throughput that is
-        # hundreds of hours per model. A fixed, preregistered sample is the honest
-        # alternative to "all of it or nothing" — n=300 is 10x the MIN_PAIRED_N
-        # floor and is frozen in the preregistration, not chosen after seeing scores.
+        # Preregistered sample: KO_ITEMS per dataset, frozen before scores are seen.
+        # The full Korean suite is ~51k items; at the measured 8.5-15 min/item that
+        # is months per model, so a fixed sample is the honest alternative to
+        # "all of it or nothing".
+        #
+        # NOT YET IMPLEMENTED, and it must not fail silently. Verified against the
+        # installed HRET 0.1.0 (2026-07-27): `Evaluator.run` exposes no limit /
+        # n_samples parameter and neither does `BaseDataset.__init__`, so there is
+        # no supported path to hand KO_ITEMS down. Left as-is this runs the FULL
+        # dataset while the operator believes a 50-item preregistered sample is in
+        # force — round 3's exact failure mode. Fail closed until a deterministic
+        # subsampler exists (needed before the floor round; R3 is KO_SUITE=off).
         n_items = int(os.environ.get("KO_ITEMS", "300"))
+        if mode == "full" and os.environ.get("KO_FULL_DATASET_OK") != "1":
+            sys.exit(f"[hret] FATAL: KO_ITEMS={n_items} cannot be enforced — HRET 0.1.0 "
+                     f"exposes no sampling parameter, so this would score ALL of {ds}. "
+                     f"Implement deterministic subsampling before the floor round, or set "
+                     f"KO_FULL_DATASET_OK=1 to run the whole dataset on purpose.")
         extra = dict(extra)
         extra.setdefault("dataset_params", {})
         try:

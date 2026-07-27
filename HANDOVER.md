@@ -12,9 +12,9 @@ Open 2** (Kimi's), each quantized by its own team, served locally over MLX, publ
 round-by-round. **Nothing has been scored yet.** The harness is at
 `~/alis-bench-hth` (public: https://github.com/avlp12/alis-bench-hth). R3 (reference
 tier) is configured, both servers are up, the stage gate passes, and the
-preregistration is filled and hash-frozen. The remaining gate before the scored run is
-**a third adversarial review of the P0 fixes** (rounds 1 and 2 both returned BLOCK and
-both were right).
+preregistration is filled and hash-frozen. **Four adversarial reviews have run; all
+four returned BLOCK and all four were right.** Round 4's findings are fixed and the
+stage gate passes with two new checks that reproduce them (§6). R3 may start.
 
 ## 2. Live state right now
 
@@ -23,7 +23,7 @@ both were right).
 | Motif-3-Beta 8-bit (rebuilt) | epsilon `/Users/m3ms/motif3/models/Motif-3-Q8`, served `10.0.0.2:8081` | ✅ loaded, verified |
 | Solar Open 2 "T" (Q8) | gesicht `~/Documents/kimi/workspace/builds/T-q8`, served `127.0.0.1:8082` | ✅ loaded |
 | R3 config | `cases/2026-07-motif3-vs-solar2/round3-reference.env` (copied to `harness/config.env`) | ✅ frozen |
-| Preregistration | `cases/2026-07-motif3-vs-solar2/PREREGISTRATION.md` + `.sha256` = `21913472427f0ea2…` | ✅ frozen |
+| Preregistration | `cases/2026-07-motif3-vs-solar2/PREREGISTRATION.md` + `.sha256` = `6f7c7af7ebee34d5…` | ✅ frozen |
 | Stage gate | `harness/stage_gate.py` | ✅ PASS (5 layers) |
 
 **epsilon is reachable only as `10.0.0.2` over the Thunderbolt bridge.** Its hostname
@@ -34,16 +34,15 @@ machine. Do not start a second big model on either host without stopping the fir
 
 ## 3. What must happen next, in order
 
-1. **Third adversarial review** of the P0 fixes (below), especially the two I just
-   wrote: the length-control regression in `judge_pairwise.py` and the Korean pairing
-   in `run_hret.py`/`aggregate.py`. Round 2 found that *my own fixes* introduced new
-   defects, so this is not ceremony.
-2. **HRET end-to-end** — the one layer never run to completion. Stage gate 4 only
-   proves the backend answers once. Run the smallest Korean dataset all the way to a
-   parsed score before trusting the Korean half.
-3. `harness/preflight.sh` → `harness/run_all.sh` → `manifest.py check` → `aggregate.py`.
-4. Publish R3 **whatever it says** (binding rule in the prereg), then R2 (mid), then R1
+1. `harness/preflight.sh` → `harness/run_all.sh` → `manifest.py check` → `aggregate.py`.
+   Adversarial review is **done** (4 rounds, §6). Stage gate passes including the new
+   stage 6.
+2. Publish R3 **whatever it says** (binding rule in the prereg), then R2 (mid), then R1
    (floor) once Kimi's adapter bug is resolved.
+3. **Before R1:** implement deterministic Korean subsampling. `KO_ITEMS` cannot be
+   handed to HRET 0.1.0 (no sampling parameter anywhere in its API), so `run_hret.py`
+   now *aborts* rather than silently scoring all ~35k kmmlu items. R3 is unaffected
+   (`KO_SUITE=off`).
 
 ## 3b. Sample size — PREREGISTERED at 150 items per task
 
@@ -149,7 +148,45 @@ unaffected). Postmortem written into the alis-dwq case study.
 
 **Open follow-up:** re-measure those KL numbers now that a trustworthy anchor exists.
 
-## 6. P0 fixes just applied (targets of the pending review)
+## 6. Adversarial review — 4 rounds, all BLOCK, all fixed
+
+Rounds 1–3 are in git history. **Round 4 (final gate) found two CRITICAL defects of the
+exact same shape as round 3's: a fix written into a file that no code path reads.**
+
+1. **Per-task limits were inoperative.** `LIMIT_MMLU_PRO`/`LIMIT_BBH`/… were exported by
+   `config.env` and read by *nothing*; `run_lm_eval.sh` passed a single `--limit
+   "$LIMIT"` that was unset. The "150 items/task" plan would have run **~25k items per
+   model (~3 weeks)**. One invocation with `--tasks a,b,c` cannot express per-task
+   limits at all — each task now runs separately, and a task with no limit **aborts**
+   unless `LIMIT_FULL_OK=1`.
+2. **bbh was silently dropped from the verdict family.** `METRIC_SCHEMA` wanted
+   `exact_match,get-answer`, which exists only in the cot_**fewshot** config; the
+   zero-shot group aggregates over `flexible-extract`. 4 tasks would publish where 5
+   were frozen — and the round would still say COMPLETE.
+3. A COMPLETE report **never said the Korean leg was NOT RUN** (the manifest recorded
+   it; `aggregate.py` never rendered it). Absence read as parity. Now an explicit
+   section.
+4. A leftover `kmmlu_items.json` was ingested with no run_id/freshness check and
+   produced a Korean row inside the English-only round. `KO_SUITE=off` now makes
+   `aggregate.py` ignore the `hret/` tree entirely and log what it skipped.
+5. `judge_pairwise.bootstrap_sign` emitted a direction at any n while `aggregate` refused
+   below 30. Same floor now applies to both.
+6. `preflight.sh` hard-failed on 0 judges — which is R3's *preregistered* choice, so the
+   mandated gate always failed and trained the operator to bypass it. 0 judges warns;
+   **1** judge still fails.
+
+**Two new stage-gate checks reproduce #1 and #2 as failures** (`stage_gate.py` stage 6):
+every `METRIC_SCHEMA` key is validated against the *installed* task configs, and the
+sampling plan is resolved through `run_lm_eval.sh`'s own code path (`PLAN_ONLY=1`) and
+must total ~770 items/model. Neither defect was visible by reading the harness — only by
+asking the installed package and the actual script what they resolve to. **Add a gate
+check for every fix that lives in a config file.**
+
+Round 4 also *confirmed working*, by execution: the Korean per-item extraction (40/40,
+keys identical across runs), the shared format instruction against all five lm-eval
+0.4.12 extractors, and `HRET_TIMEOUT=3600`/`MAX_TOKENS=32768` reaching the litellm call.
+
+### P0 fixes from earlier rounds (all still in force)
 
 1. `EQUIV_MARGIN` 0.0 → **0.015** — framework noise alone is 1–2pp.
 2. `MAX_TOKENS` 8192 → **32768** — the reasoning-model standard; counting truncation

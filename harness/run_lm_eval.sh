@@ -33,6 +33,49 @@ GEN_TOKS="$MAX_TOKENS"
 # following, so any injected global format instruction corrupts it by construction.
 TASKS="${TASKS:-mmlu_pro,bbh_cot_zeroshot,gsm8k_cot_zeroshot,minerva_math}"
 
+# ---- per-task item budget -------------------------------------------------
+# lm-eval's --limit applies PER LEAF TASK, so for a group the realized n is
+# limit x n_subtasks:
+#   mmlu_pro 11x14=154   bbh 6x27=162   gsm8k 150x1=150
+#   minerva 22x7=154     ifeval 150x1=150            -> 770 items/model
+# which is the number frozen in the preregistration. A single invocation with
+# --tasks a,b,c CANNOT express per-task limits, so each task is run separately;
+# aggregate.py merges every results*.json under the output dir (it already had
+# to, for the separate ifeval run).
+# LIMIT, if set, overrides everything — that is the smoke/stage-gate path.
+task_limit() {
+  [ -n "${LIMIT:-}" ] && { echo "$LIMIT"; return; }
+  case "$1" in
+    mmlu_pro)            echo "${LIMIT_MMLU_PRO:-}";;
+    bbh_cot_zeroshot)    echo "${LIMIT_BBH:-}";;
+    gsm8k_cot_zeroshot)  echo "${LIMIT_GSM8K:-}";;
+    minerva_math)        echo "${LIMIT_MINERVA:-}";;
+    ifeval)              echo "${LIMIT_IFEVAL:-}";;
+    *)                   echo "";;
+  esac
+}
+# Fail closed: an unlimited task is ~25k items (~3 weeks at the measured
+# 89 s/item) and would silently violate the frozen sampling plan. Running the
+# full dataset has to be asked for by name.
+require_limit() {
+  local t="$1" n; n="$(task_limit "$t")"
+  if [ -z "$n" ] && [ "${LIMIT_FULL_OK:-0}" != "1" ]; then
+    echo "[lm_eval] FATAL: no item limit for task '$t'." >&2
+    echo "  set LIMIT_<TASK> in config.env (the preregistered plan), or export" >&2
+    echo "  LIMIT_FULL_OK=1 to deliberately run the full dataset." >&2
+    exit 1
+  fi
+  echo "$n"
+}
+
+# PLAN_ONLY=1 resolves and prints the sampling plan through THIS code path, then
+# exits without generating. stage_gate.py asserts on it — the check that would
+# have caught LIMIT_* being exported by config.env and read by nothing.
+if [ "${PLAN_ONLY:-0}" = "1" ]; then
+  for T in ${TASKS//,/ } ifeval; do echo "PLAN ${T}=$(require_limit "$T")"; done
+  exit 0
+fi
+
 echo "[lm_eval] $NAME tasks=$TASKS temp=$TEMP top_p=$TOP_P max_gen_toks=$GEN_TOKS (peak) -> $OUT"
 # --apply_chat_template is REQUIRED by local-chat-completions (it asserts the
 # request is a message list, not a string). Combined with tokenized_requests=False
@@ -67,33 +110,46 @@ FEWSHOT="${FEWSHOT:-0}"
 # would have scored obedience to our own instruction as failure.
 FORMAT_INSTRUCTION="${FORMAT_INSTRUCTION:-End your reply with a final line of the form: The answer is <answer>.}"
 
-"$LMEVAL_BIN" "${LMEVAL_RUN[@]}" --model local-chat-completions \
-  --model_args "model=${MODEL},base_url=${URL}/v1/chat/completions,num_concurrent=${NUM_CONCURRENT:-4},max_retries=3,tokenized_requests=False,timeout=7200,seed=${SEED}" \
-  --tasks "$TASKS" ${LIMIT:+--limit "$LIMIT"} \
-  --num_fewshot "$FEWSHOT" \
-  --system_instruction "$FORMAT_INSTRUCTION" \
-  --apply_chat_template \
-  --gen_kwargs "temperature=${TEMP},top_p=${TOP_P},max_gen_toks=${GEN_TOKS}" \
-  --seed "$SEED" --batch_size 1 --log_samples \
-  --output_path "$OUT"
+MODEL_ARGS="model=${MODEL},base_url=${URL}/v1/chat/completions,num_concurrent=${NUM_CONCURRENT:-4},max_retries=3,tokenized_requests=False,timeout=7200,seed=${SEED}"
+PLAN=""   # "task=limit;..." — recorded so the manifest states the realized plan
+
+for T in ${TASKS//,/ }; do
+  N="$(require_limit "$T")"
+  echo "[lm_eval] $NAME task=$T limit=${N:-FULL}"
+  "$LMEVAL_BIN" "${LMEVAL_RUN[@]}" --model local-chat-completions \
+    --model_args "$MODEL_ARGS" \
+    --tasks "$T" ${N:+--limit "$N"} \
+    --num_fewshot "$FEWSHOT" \
+    --system_instruction "$FORMAT_INSTRUCTION" \
+    --apply_chat_template \
+    --gen_kwargs "temperature=${TEMP},top_p=${TOP_P},max_gen_toks=${GEN_TOKS}" \
+    --seed "$SEED" --batch_size 1 --log_samples \
+    --output_path "$OUT"
+  PLAN="${PLAN}${T}=${N:-full};"
+done
 
 # ifeval — SEPARATE run, NO --system_instruction. It scores each item against its
 # own constraints (end-with-phrase, wrap-in-quotes, JSON-only, language-only...),
 # so a global format instruction makes it measure system-vs-user priority instead
 # of instruction following, penalising the more system-obedient model.
-echo "[lm_eval] $NAME ifeval (no system instruction, native zero-shot)"
+IFEVAL_N="$(require_limit ifeval)"
+echo "[lm_eval] $NAME ifeval limit=${IFEVAL_N:-FULL} (no system instruction, native zero-shot)"
 "$LMEVAL_BIN" "${LMEVAL_RUN[@]}" --model local-chat-completions \
-  --model_args "model=${MODEL},base_url=${URL}/v1/chat/completions,num_concurrent=${NUM_CONCURRENT:-4},max_retries=3,tokenized_requests=False,timeout=7200,seed=${SEED}" \
-  --tasks ifeval ${LIMIT:+--limit "$LIMIT"} \
+  --model_args "$MODEL_ARGS" \
+  --tasks ifeval ${IFEVAL_N:+--limit "$IFEVAL_N"} \
   --apply_chat_template \
   --gen_kwargs "temperature=${TEMP},top_p=${TOP_P},max_gen_toks=${GEN_TOKS}" \
   --seed "$SEED" --batch_size 1 --log_samples \
   --output_path "$OUT"
+PLAN="${PLAN}ifeval=${IFEVAL_N:-full};"
 
-python3 - "$OUT" "$TASKS" <<'PY'
+python3 - "$OUT" "$TASKS" "$PLAN" <<'PY'
 import json, sys
-out, tasks = sys.argv[1], sys.argv[2].split(",")
-json.dump({"tasks_run": tasks,
+out, tasks, plan = sys.argv[1], sys.argv[2].split(","), sys.argv[3]
+limits = dict(kv.split("=", 1) for kv in plan.strip(";").split(";") if kv)
+json.dump({"tasks_run": tasks + ["ifeval"],
+  "per_task_limit": limits,
+  "limit_semantics": "lm-eval --limit is PER LEAF TASK; group tasks realize limit x n_subtasks",
   "advertised_but_NOT_automated_here": [
     "gpqa_diamond (loglikelihood — run on the bf16/8-bit ref via HF backend)",
     "LiveCodeBench (external repo; point at the same base_url)",

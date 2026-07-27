@@ -24,7 +24,13 @@ SEED = int(os.environ.get("SEED", "1234"))
 # ---- explicit metric schema: ordered acceptable "metric,filter" keys per task ----
 METRIC_SCHEMA = {
     "mmlu_pro":           ["exact_match,custom-extract", "exact_match,none"],
-    "bbh_cot_zeroshot":   ["exact_match,none", "exact_match,get-answer"],
+    # bbh ZERO-shot filters are flexible-extract / strict-match; "get-answer"
+    # exists only in the cot_FEWSHOT config. The group's own aggregate_metric_list
+    # averages exact_match over filter_list=flexible-extract, so that is the group
+    # row's key. Verified against the installed lm-eval 0.4.12 yamls 2026-07-27;
+    # the previous keys matched NOTHING, which excluded bbh from the verdict family
+    # while still reporting the round COMPLETE.
+    "bbh_cot_zeroshot":   ["exact_match,flexible-extract", "exact_match,strict-match"],
     # gsm8k zero-shot: flexible-extract first. strict-match wants the exact
     # sentence form; flexible takes the last number and is robust to a model that
     # solves the problem while phrasing the conclusion its own way.
@@ -170,6 +176,10 @@ def load_integrity():
     j = json.loads(man.read_text())
     return {"verdict": j.get("integrity", {}).get("verdict", "UNCHECKED"),
             "suite_mode": j.get("suite_mode", "?"), "run_id": j.get("run_id", "?"),
+            # A cell the manifest deliberately did not require is NOT the same as
+            # a cell that came out even. The report has to say so in words, or a
+            # reader takes the silence for measured parity.
+            "not_run": j.get("not_run", {}) or {},
             "detail": j.get("integrity", {})}
 
 def load_hret(name):
@@ -221,6 +231,16 @@ def main():
         md += ["> missing: " + ", ".join(integ["detail"].get("missing", []) or ["—"]),
                "> stale: " + ", ".join(integ["detail"].get("stale", []) or ["—"]), ""]
 
+    # ---- NOT RUN, stated in words -------------------------------------------
+    # Absence of a row must never read as "measured, no difference".
+    if integ.get("not_run"):
+        md += ["## NOT RUN this round", "",
+               "These cells were **not measured**. Absence of a result below is absence of"
+               " measurement, not evidence of parity.", "",
+               "| cell | reason |", "|---|---|"]
+        md += [f"| `{k}` | {v} |" for k, v in sorted(integ["not_run"].items())]
+        md += [""]
+
     # ---- lm-eval tasks: paired ----
     # pass 1: collect paired stats
     stats, schema_drift, unpaired = [], [], []
@@ -246,9 +266,19 @@ def main():
         if not f.exists(): return {}
         try: return {r["key"]: r["score"] for r in json.load(open(f))}
         except Exception: return {}
-    ko_ds = sorted({p.name[:-len("_items.json")]
-                    for n in ("motif", "solar")
-                    for p in (R / "hret" / n).glob("*_items.json")} ) if (R / "hret").exists() else []
+    # KO_SUITE=off means the Korean leg is preregistered NOT RUN for this round.
+    # Leftover *_items.json from an aborted earlier attempt would otherwise be
+    # ingested with no run_id or freshness check (the manifest does not check
+    # hret staleness when it does not require those cells) and would fabricate a
+    # Korean verdict inside an English-only round. Do not look at the directory.
+    ko_off = os.environ.get("KO_SUITE", "on").strip().lower() == "off"
+    ko_ds = [] if (ko_off or not (R / "hret").exists()) else sorted(
+        {p.name[:-len("_items.json")]
+         for n in ("motif", "solar")
+         for p in (R / "hret" / n).glob("*_items.json")})
+    if ko_off:
+        for _stray in (R / "hret").glob("*/*_items.json"):
+            print(f"[aggregate] KO_SUITE=off — IGNORING stale Korean items file {_stray}")
     for ds in ko_ds:
         mi, si = _ko_items("motif", ds), _ko_items("solar", ds)
         shared = sorted(set(mi) & set(si))
@@ -284,7 +314,9 @@ def main():
                "CANNOT decide a winner:"] + [f">   - {u}" for u in unpaired]
 
     # ---- HRET: marginal only (no per-item paired test available) ----
-    hm, hs = load_hret("motif"), load_hret("solar")
+    # same fail-closed rule as the paired Korean rows: KO_SUITE=off ⇒ ignore the
+    # directory entirely, so a leftover _summary.json cannot appear as a result.
+    hm, hs = ({}, {}) if ko_off else (load_hret("motif"), load_hret("solar"))
     if hm or hs:
         md += ["", "## Korean suite (HRET) — marginal (no paired test; treat Δ cautiously)", "",
                "| dataset | Motif | Solar | note |", "|---|---|---|---|"]
